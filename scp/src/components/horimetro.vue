@@ -78,7 +78,7 @@ export default {
     }
   },
   carregarMaquinas() {
-    fetch('http://localhost:3000/equipamentos')
+    fetch('http://10.1.0.238:3000/equipamentos')
       .then(res => res.json())
       .then(data => {
         this.maquinas = data.map(item => ({
@@ -96,7 +96,7 @@ export default {
       return;
     }
 
-    fetch('http://localhost:3000/horimetro', {
+    fetch('http://10.1.0.238:3000/horimetro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
