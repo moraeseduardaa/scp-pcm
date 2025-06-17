@@ -1,3 +1,4 @@
+
 <template>
   <div>
     <input
@@ -15,7 +16,7 @@
       class="form-control cor-text-select mt-4 d-inline-block"
       style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;"
     >
-      <option selected disabled hidden>Selecione o Operador</option>
+      <option selected disabled hidden>Selecionar Operador</option>
       <option>FELIPE GARCIA</option>
       <option>MARIA APARECIDA</option>
       <option>CECILIA EMILIANA</option>
@@ -51,9 +52,9 @@
       v-model="maquinaSelecionada"
       class="form-control cor-text-select mt-4 d-inline-block"
       style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;"
-      :disabled="!celulaSelecionada"
+      :disabled="!tipoSelecionado || !celulaSelecionada"
     >
-      <option disabled value="">Selecione a Máquina</option>
+      <option disabled value="">Selecionar Máquina</option>
       <option v-for="maquina in maquinas" :key="maquina.id" :value="maquina.id">
         {{ maquina.nome }}
       </option>
@@ -88,7 +89,7 @@ export default {
       }
     },
     celulaSelecionada(novaCelula) {
-      if (novaCelula) {
+      if (this.tipoSelecionado && novaCelula) {
         this.carregarMaquinas();
       } else {
         this.maquinas = [];
@@ -121,8 +122,7 @@ export default {
     }
   },
   carregarCelulas() {
-    const tipoMap = { Jacquard: 3, Agulha: 1, Croche: 2 };
-    const tipoCodigo = tipoMap[this.tipoSelecionado] || this.tipoSelecionado;
+    const tipoCodigo = this.tipoSelecionado;
     if (!tipoCodigo) {
       this.celulas = [];
       return;
@@ -141,19 +141,14 @@ export default {
       });
   },
   carregarMaquinas() {
-    const tipoCodigo = Number(this.tipoSelecionado);
+    const tipoCodigo = this.tipoSelecionado;
     if (!this.celulaSelecionada || !tipoCodigo) {
       this.maquinas = [];
       return;
     }
-    console.log('Buscando máquinas com:', {
-      cod_celula: this.celulaSelecionada,
-      tipo: tipoCodigo
-    });
-    fetch(`http://10.1.0.238:3000/equipamentos?cod_celula=${this.celulaSelecionada}&tipo=${tipoCodigo}`)
+    fetch(`http://10.1.0.238:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`)
       .then(res => res.json())
       .then(data => {
-        console.log('Máquinas retornadas:', data);
         this.maquinas = data.map(item => ({
           id: item.codigo, 
           nome: item.descricao 

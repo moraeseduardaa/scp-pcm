@@ -15,7 +15,7 @@ app.get('/celulas', async (req, res) => {
     return res.status(400).json({ error: 'Tipo é obrigatório' });
   }
   try {
-    const result = await pool.query('SELECT codigo, celula FROM celula WHERE tipo_equipamento = $1', [tipo]);
+    const result = await pool.query('SELECT celula FROM celula WHERE tipo_equipamento = $1', [tipo]);
     res.json(result.rows.map(row => row.celula));
   } catch (err) {
     console.error('Erro ao buscar células:', err);
@@ -25,23 +25,20 @@ app.get('/celulas', async (req, res) => {
 
 
 app.get('/equipamentos', async (req, res) => {
-  const cod_celula = req.query.cod_celula;
-  const tipo = req.query.tipo;
-  let query = `SELECT codigo, descricao FROM equipamento WHERE status = 'ATIVO'`;
-  const params = [];
-  console.log('Tipo recebido no tipo_equipamento:', tipo, 'celula:', cod_celula, 'Query completa:', req.query);
+  const tipo = req.query['tipo'];
+  const celula = req.query['celula'];
 
-  if (tipo) {
-    params.push(tipo);
-    query += ` AND tipo_equipamento = $${params.length}`;
-  }
-  if (cod_celula) {
-    params.push(cod_celula);
-    query += ` AND cod_celula = $${params.length}`;
-  }
+  console.log('req.query:', req.query);
+  console.log('req.query keys:', Object.keys(req.query));
+  console.log('celula diretamente acessado:', req.query['celula']);
+
+
+  const sql = `SELECT codigo, descricao FROM equipamento
+               WHERE status = 'ATIVO' AND tipo = $1 AND celula = $2`;
+  const params = [tipo, celula];
 
   try {
-    const result = await pool.query(query, params);
+    const result = await pool.query(sql, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Erro ao buscar equipamentos:', err);
