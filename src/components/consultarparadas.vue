@@ -1,70 +1,73 @@
 <template>
     <div class="p-4" @click="fecharTodosDropdowns">
-        <table class="table table-dark table-striped">
-            <thead>
-                <tr>
-                    <th class="position-relative">
-                        <span class="coluna-com-icone" @click.stop="toggleDropdown('tipo')">
-                            Tipo <i class="bi bi-arrow-down-short"></i>
-                        </span>
-                        <div v-if="dropdowns.tipo" class="dropdown-menu-custom">
-                            <div class="dropdown-item" @click="filtroTipo = ''; fecharTodosDropdowns()">Todos os Tipos
+        <div class="table-responsive">
+            <table class="table table-dark table-striped">
+                <thead>
+                    <tr>
+                        <th class="position-relative">
+                            <span class="coluna-com-icone" @click.stop="toggleDropdown('tipo')">
+                                Tipo <i class="bi bi-arrow-down-short"></i>
+                            </span>
+                            <div v-if="dropdowns.tipo" class="dropdown-menu-custom">
+                                <div class="dropdown-item" @click="filtroTipo = ''; fecharTodosDropdowns()">Todos os
+                                    Tipos
+                                </div>
+                                <div class="dropdown-item" v-for="tipo in tiposUnicos" :key="tipo"
+                                    @click="filtroTipo = tipo; fecharTodosDropdowns()">{{ tipo }}</div>
                             </div>
-                            <div class="dropdown-item" v-for="tipo in tiposUnicos" :key="tipo"
-                                @click="filtroTipo = tipo; fecharTodosDropdowns()">{{ tipo }}</div>
-                        </div>
-                    </th>
+                        </th>
 
-                    <th class="position-relative">
-                        <span class="coluna-com-icone" @click.stop="toggleDropdown('celula')">
-                            Célula <i class="bi bi-arrow-down-short"></i>
-                        </span>
-                        <div v-if="dropdowns.celula" class="dropdown-menu-custom">
-                            <div class="dropdown-item" @click="filtroCelula = ''; fecharTodosDropdowns()">Todas as
-                                Células</div>
-                            <div class="dropdown-item" v-for="celula in celulasUnicas" :key="celula"
-                                @click="filtroCelula = celula; fecharTodosDropdowns()">{{ celula }}</div>
-                        </div>
-                    </th>
+                        <th class="position-relative">
+                            <span class="coluna-com-icone" @click.stop="toggleDropdown('celula')">
+                                Célula <i class="bi bi-arrow-down-short"></i>
+                            </span>
+                            <div v-if="dropdowns.celula" class="dropdown-menu-custom">
+                                <div class="dropdown-item" @click="filtroCelula = ''; fecharTodosDropdowns()">Todas as
+                                    Células</div>
+                                <div class="dropdown-item" v-for="celula in celulasUnicas" :key="celula"
+                                    @click="filtroCelula = celula; fecharTodosDropdowns()">{{ celula }}</div>
+                            </div>
+                        </th>
 
-                    <th class="position-relative">
-                        <span class="coluna-com-icone" @click.stop="toggleDropdown('equipamento')">
-                            Equipamento <i class="bi bi-arrow-down-short"></i>
-                        </span>
-                        <div v-if="dropdowns.equipamento" class="dropdown-menu-custom">
-                            <div class="dropdown-item" @click="filtroEquipamento = ''; fecharTodosDropdowns()">Todos os
-                                Equipamentos</div>
-                            <div class="dropdown-item" v-for="equip in equipamentosUnicos" :key="equip"
-                                @click="filtroEquipamento = equip; fecharTodosDropdowns()">{{ equip }}</div>
-                        </div>
-                    </th>
+                        <th class="position-relative">
+                            <span class="coluna-com-icone" @click.stop="toggleDropdown('equipamento')">
+                                Equipamento <i class="bi bi-arrow-down-short"></i>
+                            </span>
+                            <div v-if="dropdowns.equipamento" class="dropdown-menu-custom">
+                                <div class="dropdown-item" @click="filtroEquipamento = ''; fecharTodosDropdowns()">Todos
+                                    os
+                                    Equipamentos</div>
+                                <div class="dropdown-item" v-for="equip in equipamentosUnicos" :key="equip"
+                                    @click="filtroEquipamento = equip; fecharTodosDropdowns()">{{ equip }}</div>
+                            </div>
+                        </th>
 
-                    <th class="position-relative">
-                        <span class="coluna-com-icone" @click.stop="toggleDropdown('motivo')">
-                            Motivo <i class="bi bi-arrow-down-short"></i>
-                        </span>
-                        <div v-if="dropdowns.motivo" class="dropdown-menu-custom">
-                            <div class="dropdown-item" @click="filtroMotivo = ''; fecharTodosDropdowns()">Todos os
-                                Motivos</div>
-                            <div class="dropdown-item" v-for="motivo in motivosUnicos" :key="motivo"
-                                @click="filtroMotivo = motivo; fecharTodosDropdowns()">{{ motivo }}</div>
-                        </div>
-                    </th>
-                </tr>
-            </thead>
+                        <th class="position-relative">
+                            <span class="coluna-com-icone" @click.stop="toggleDropdown('motivo')">
+                                Motivo <i class="bi bi-arrow-down-short"></i>
+                            </span>
+                            <div v-if="dropdowns.motivo" class="dropdown-menu-custom">
+                                <div class="dropdown-item" @click="filtroMotivo = ''; fecharTodosDropdowns()">Todos os
+                                    Motivos</div>
+                                <div class="dropdown-item" v-for="motivo in motivosUnicos" :key="motivo"
+                                    @click="filtroMotivo = motivo; fecharTodosDropdowns()">{{ motivo }}</div>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
 
-            <tbody>
-                <tr v-for="(parada, index) in paradasFiltradas" :key="index">
-                    <td>{{ parada.tipo }}</td>
-                    <td>{{ parada.celula }}</td>
-                    <td>{{ parada.equipamento_nome }}</td>
-                    <td>{{ parada.motivo }}</td>
-                </tr>
-            </tbody>
-        </table>
+                <tbody>
+                    <tr v-for="(parada, index) in paradasFiltradas" :key="index">
+                        <td>{{ parada.tipo }}</td>
+                        <td>{{ parada.celula }}</td>
+                        <td>{{ parada.equipamento_nome }}</td>
+                        <td>{{ parada.motivo }}</td>
+                    </tr>
+                </tbody>
+            </table>
 
-        <button class="btn btn-danger mt-4" @click="abrirModalParada">Apontar Parada</button>
-
+            <button class="btn btn-danger mt-4" @click="abrirModalParada">Apontar Parada</button>
+        </div>
         <div class="modal fade" id="paradaModal" ref="modalParada" tabindex="-1" aria-labelledby="paradaModalLabel"
             aria-hidden="true">
             <div class="modal-dialog modal-lg">
@@ -143,17 +146,17 @@ export default {
             Object.keys(this.dropdowns).forEach(k => this.dropdowns[k] = false);
         },
         abrirModalParada() {
-        if (!this.modalParadaInstance) {
-            this.modalParadaInstance = new bootstrap.Modal(this.$refs.modalParada);
-        }
+            if (!this.modalParadaInstance) {
+                this.modalParadaInstance = new bootstrap.Modal(this.$refs.modalParada);
+            }
 
-        this.paradaKey = Date.now();
+            this.paradaKey = Date.now();
 
-        this.modalParadaInstance.show();
+            this.modalParadaInstance.show();
 
-        this.$refs.modalParada.addEventListener('hidden.bs.modal', () => {
-            this.carregarParadas();
-        }, { once: true });
+            this.$refs.modalParada.addEventListener('hidden.bs.modal', () => {
+                this.carregarParadas();
+            }, { once: true });
         }
 
     },

@@ -8,7 +8,24 @@
           <div class="d-flex justify-content-center gap-3 mt-4">
             <button class="btn btn-secondary btn-lg" @click="abrirModalHorimetro">Marcar Horímetro</button>
             <button class="btn btn-danger btn-lg" @click="abrirModalParada">Consultar Paradas</button>
+            <span class="config-icon" @click="abrirModalConfig">
+              <i class="bi bi-gear-fill fs-4"></i>
+            </span>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="configModalLabel">Cadastros</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <Config />
         </div>
       </div>
     </div>
@@ -28,7 +45,7 @@
     </div>
   </div>
 
-   <div class="modal fade" id="paradaModal" tabindex="-1" aria-labelledby="paradaModalLabel" aria-hidden="true">
+  <div class="modal fade" id="paradaModal" tabindex="-1" aria-labelledby="paradaModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
@@ -40,16 +57,17 @@
         </div>
       </div>
     </div>
-  </div> 
+  </div>
 </template>
 
 <script>
 import Horimetro from './components/horimetro.vue';
 import ConsultarParadas from './components/consultarparadas.vue';
+import Config from './components/config.vue';
 
 export default {
   name: 'App',
-  components: { Horimetro, ConsultarParadas },
+  components: { Horimetro, ConsultarParadas, Config },
   data() {
     return {
       dataHora: new Date().toLocaleString('pt-BR', {
@@ -57,7 +75,8 @@ export default {
         hour: '2-digit', minute: '2-digit'
       }),
       horimetroKey: 0,
-      paradaKey: 0
+      paradaKey: 0,
+      configKey: 0
     };
   },
   methods: {
@@ -69,6 +88,11 @@ export default {
     abrirModalParada() {
       this.paradaKey++;
       const modal = new window.bootstrap.Modal(document.getElementById('paradaModal'));
+      modal.show();
+    },
+    abrirModalConfig() {
+      this.configKey++;
+      const modal = new window.bootstrap.Modal(document.getElementById('configModal'));
       modal.show();
     }
   },
@@ -109,20 +133,33 @@ export default {
 body {
   background-color: #212529;
 }
+
 .bg-dark {
   background-color: #212529 !important;
 }
+
 .card {
   border-radius: 1.5rem;
 }
+
 .card-body {
   border-radius: 1.5rem;
 }
+
 button.btn {
   min-width: 150px;
 }
+
 .modal-content {
   background-color: #343a40 !important;
   color: #fff;
+}
+
+.config-icon {
+  position: fixed;
+  bottom: 132px;
+  right: 100px;
+  z-index: 1050;
+  cursor: pointer;
 }
 </style>

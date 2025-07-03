@@ -1,60 +1,62 @@
 <template>
   <div>
-    <input type="datetime-local" name="datahora" class="form-control cor-text-select mt-4" id="horimetroDataHora"
-      style="background-color: #343a40; color: #fff;" :value="dataHora" />
+    <input type="datetime-local" v-model="dataHora" class="form-control cor-text-select mt-4" id="horimetroDataHora"
+      style="background-color: #343a40; color: #fff;" />
 
-    <select name="operador" v-model="operadorSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
-      :disabled="formBloqueado" style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;">
-      <option selected disabled hidden value="">Selecionar Operador</option>
-      <option>GABRIEL BARBOSA</option>
-      <option>MARIA APARECIDA</option>
-      <option>ALEX PERASSOLI</option>
-      <option>TAIS MACEDO</option>
-      <option>FELIPE GARCIA</option>
-      <option>LUCIANA PARANHOS</option>
-      <option>CECILIA EMILIANA</option>
-      <option>TAINÃ PAIVA</option>
-      <option>LUCAS ANTÔNIO</option>
-      <option>THAIS VENANCIO</option>
-      <option>GRASIELE FERREIRA</option>
-      <option>LUIZ GUILHERME</option>
-      <option>LEONILDA VICENTE</option>
-      <option>AMANDA NOGUEIRA</option>
-      <option>MARCIANO DE ASSIS</option>
-      <option>LUANA TEIXEIRA</option>
-      <option>NAYARA CAROLINE</option>
-      <option>ALINE VIEIRA</option>
-      <option>YOHANNA GABRIELA</option>
-      <option>WAGNER LUCAS</option>
-    </select>
+    <div class="d-flex justify-content-between" style="gap: 2%;">
+      <select name="operador" v-model="operadorSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
+        :disabled="formBloqueado" style="width: 49%; background-color: #343a40; color: #fff;">
+        <option selected disabled hidden value="">Selecionar Operador</option>
+        <option>GABRIEL BARBOSA</option>
+        <option>MARIA APARECIDA</option>
+        <option>ALEX PERASSOLI</option>
+        <option>TAIS MACEDO</option>
+        <option>FELIPE GARCIA</option>
+        <option>LUCIANA PARANHOS</option>
+        <option>CECILIA EMILIANA</option>
+        <option>TAINÃ PAIVA</option>
+        <option>LUCAS ANTÔNIO</option>
+        <option>THAIS VENANCIO</option>
+        <option>GRASIELE FERREIRA</option>
+        <option>LUIZ GUILHERME</option>
+        <option>LEONILDA VICENTE</option>
+        <option>AMANDA NOGUEIRA</option>
+        <option>MARCIANO DE ASSIS</option>
+        <option>LUANA TEIXEIRA</option>
+        <option>NAYARA CAROLINE</option>
+        <option>ALINE VIEIRA</option>
+        <option>YOHANNA GABRIELA</option>
+        <option>WAGNER LUCAS</option>
+      </select>
 
-    <select name="tipo" v-model="tipoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
-      :disabled="formBloqueado" style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;">
-      <option selected disabled hidden value="">Selecionar Tipo Equipamento</option>
-      <option :value="3">JACQUARD</option>
-      <option :value="1">AGULHA</option>
-      <option :value="2">CROCHE</option>
-    </select>
+      <select name="tipo" v-model="tipoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
+        :disabled="formBloqueado" style="width: 49%; background-color: #343a40; color: #fff;">
+        <option selected disabled hidden value="">Selecionar Tipo Equipamento</option>
+        <option :value="3">JACQUARD</option>
+        <option :value="1">AGULHA</option>
+        <option :value="2">CROCHE</option>
+      </select>
+    </div>
+    <div class="d-flex justify-content-between" style="gap: 2%;">
+      <select name="celula" v-model="celulaSelecionada" class="form-control cor-text-select mt-4 d-inline-block"
+        style="width: 49%; background-color: #343a40; color: #fff;" :disabled="formBloqueado || !tipoSelecionado">
+        <option selected disabled hidden value="">Selecionar Célula</option>
+        <option v-for="celula in celulas" :key="celula" :value="celula">
+          {{ celula }}
+        </option>
+      </select>
 
-    <select name="celula" v-model="celulaSelecionada" class="form-control cor-text-select mt-4 d-inline-block"
-      style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;"
-      :disabled="formBloqueado || !tipoSelecionado">
-      <option selected disabled hidden value="">Selecionar Célula</option>
-      <option v-for="celula in celulas" :key="celula" :value="celula">
-        {{ celula }}
-      </option>
-    </select>
 
-    <select name="maquina" v-model="maquinaSelecionada" @change="verificarParadaAberta"
-      :disabled="formBloqueado || !tipoSelecionado || !celulaSelecionada"
-      class="form-control cor-text-select mt-4 d-inline-block"
-      style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;">
-      <option disabled value="">Selecionar Equipamento</option>
-      <option v-for="maquina in maquinas" :key="maquina.id" :value="maquina.id">
-        {{ maquina.id }} - {{ maquina.nome }}
-      </option>
-    </select>
-
+      <select name="maquina" v-model="maquinaSelecionada" @change="verificarParadaAberta"
+        :disabled="formBloqueado || !tipoSelecionado || !celulaSelecionada"
+        class="form-control cor-text-select mt-4 d-inline-block"
+        style="width: 49%; background-color: #343a40; color: #fff;">
+        <option disabled value="">Selecionar Equipamento</option>
+        <option v-for="maquina in maquinas" :key="maquina.id" :value="maquina.id">
+          {{ maquina.id }} - {{ maquina.nome }}
+        </option>
+      </select>
+    </div>
     <select name="motivo" v-model="motivoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
       :disabled="formBloqueado" style="background-color: #343a40; color: #fff;">
       <option selected disabled hidden value="">Selecionar Motivo da Parada</option>
@@ -256,9 +258,6 @@ export default {
 
           if (!this.motivoSelecionado) this.motivoSelecionado = '';
           if (!this.operadorSelecionado) this.operadorSelecionado = '';
-
-          this.dataHora = this.getLocalDateTime();
-
         }
       } catch (err) {
         console.error('Erro ao verificar parada:', err);
@@ -309,4 +308,3 @@ export default {
   }
 }
 </script>
-

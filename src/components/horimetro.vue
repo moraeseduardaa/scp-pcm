@@ -8,75 +8,57 @@
       id="horimetroDataHora"
       style="background-color: #343a40; color: #fff;"
       :value="dataHora"
-      readonly
+      disabled
     />
 
-    <select
-      name="operador"
-      class="form-control cor-text-select mt-4 d-inline-block"
-      style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;"
-    >
-      <option selected disabled hidden>Selecionar Operador</option>
-      <option>GABRIEL BARBOSA</option>
-      <option>MARIA APARECIDA</option>
-      <option>ALEX PERASSOLI</option>
-      <option>TAIS MACEDO</option>
-      <option>FELIPE GARCIA</option>
-      <option>LUCIANA PARANHOS</option>
-      <option>CECILIA EMILIANA</option>
-      <option>TAINÃ PAIVA</option>
-      <option>LUCAS ANTÔNIO</option>
-      <option>THAIS VENANCIO</option>
-      <option>GRASIELE FERREIRA</option>
-      <option>LUIZ GUILHERME</option>
-      <option>LEONILDA VICENTE</option>
-      <option>AMANDA NOGUEIRA</option>
-      <option>MARCIANO DE ASSIS</option>
-      <option>LUANA TEIXEIRA</option>
-      <option>NAYARA CAROLINE</option>
-      <option>ALINE VIEIRA</option>
-      <option>YOHANNA GABRIELA</option>
-      <option>WAGNER LUCAS</option>
-    </select>
-
-    <select
-      name="tipo"
-      v-model="tipoSelecionado"
-      class="form-control cor-text-select mt-4 d-inline-block"
-      style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;"
-    >
+    <div class="d-flex justify-content-between" style="gap: 2%;">
+    <select name="tipo" v-model="tipoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
+      style="width: 49%; background-color: #343a40; color: #fff;">
       <option selected disabled hidden value="">Selecionar Tipo Equipamento</option>
       <option :value="3">JACQUARD</option>
       <option :value="1">AGULHA</option>
       <option :value="2">CROCHE</option>
     </select>
 
-    <select
-      name="celula"
-      v-model="celulaSelecionada"
-      class="form-control cor-text-select mt-4 d-inline-block"
-      style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;"
-      :disabled="!tipoSelecionado"
-    >
+    <select name="celula" v-model="celulaSelecionada" class="form-control cor-text-select mt-4 d-inline-block"
+      style="width: 49%; background-color: #343a40; color: #fff;"
+      :disabled="!tipoSelecionado">
       <option selected disabled hidden value="">Selecionar Célula</option>
       <option v-for="celula in celulas" :key="celula" :value="celula">
         {{ celula }}
       </option>
     </select>
+    </div>
 
-    <select
-      name="maquina"
-      v-model="maquinaSelecionada"
-      class="form-control cor-text-select mt-4 d-inline-block"
-      style="background-color: #343a40; color: #fff; width: 48%; margin-right: 2%;"
+    <div class="d-flex justify-content-between" style="gap: 2%;">
+    <select name="maquina" v-model="maquinaSelecionada" @change="verificarParadaAberta"
       :disabled="!tipoSelecionado || !celulaSelecionada"
-    >
+      class="form-control cor-text-select mt-4 d-inline-block"
+      style="width: 49%; background-color: #343a40; color: #fff;">
       <option disabled value="">Selecionar Equipamento</option>
       <option v-for="maquina in maquinas" :key="maquina.id" :value="maquina.id">
-        {{ maquina.nome }}
+        {{ maquina.id }} - {{ maquina.nome }}
       </option>
     </select>
 
+    <select name="periodo" class="form-control cor-text-select mt-4 d-inline-block"
+      style="width: 49%; background-color: #343a40; color: #fff;">
+      <option selected disabled hidden>Selecionar Período</option>
+      <option>INTERVALO 1° TURNO</option>
+      <option>INTERVALO 2° TURNO</option>
+      <option>FIM DO 1° TURNO</option>
+      <option>FIM DO 2° TURNO</option>
+    </select>
+    </div>
+
+    <input
+      type="time"
+      name="horimetro"
+      class="form-control cor-text-select mt-4 d-inline-block"
+      style="background-color: #343a40; color: #fff;"
+      id="horimetro"
+      placeholder="Adicione o Horímetro"
+    />
 
     <button class="btn btn-danger mt-4" @click="enviarHorimetro">Registrar</button>
 
@@ -123,58 +105,60 @@ export default {
     atualizarDataHora() {
       this.dataHora = this.getLocalDateTime();
     },
-  formatDate(isoString, timeOnly = false) {
-    if (!isoString) return '';
-    try {
-      const date = new Date(isoString);
-      if (isNaN(date.getTime())) return '';
-      const pad = (n) => String(n).padStart(2, '0');
-      if (timeOnly) {
-        return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-      }
-      return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${String(date.getFullYear()).slice(-2)} - ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-    } catch (e) {
-      console.warn('Erro ao formatar data:', isoString, e);
-      return '';
-    }
-  },
-  carregarCelulas() {
-    const tipoCodigo = this.tipoSelecionado;
-    if (!tipoCodigo) {
-      this.celulas = [];
-      return;
-    }
-    fetch(`http://10.1.0.238:3000/celulas?tipo=${tipoCodigo}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.length && typeof data[0] === 'object' && data[0].celula) {
-          this.celulas = data.map(item => item.celula);
-        } else {
-          this.celulas = data;
+    formatDate(isoString, timeOnly = false) {
+      if (!isoString) return '';
+      try {
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        if (timeOnly) {
+          return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
         }
-      })
-      .catch(err => {
-        console.error('Erro ao buscar células:', err);
-      });
-  },
-  carregarMaquinas() {
-    const tipoCodigo = this.tipoSelecionado;
-    if (!this.celulaSelecionada || !tipoCodigo) {
-      this.maquinas = [];
-      return;
-    }
-    fetch(`http://10.1.0.238:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`)
-      .then(res => res.json())
-      .then(data => {
-        this.maquinas = data.map(item => ({
-          id: item.codigo, 
-          nome: item.descricao 
-        }));
-      })
-      .catch(err => {
-        console.error('Erro ao buscar máquinas:', err);
-      });
-  },
+        return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${String(date.getFullYear()).slice(-2)} - ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      } catch (e) {
+        console.warn('Erro ao formatar data:', isoString, e);
+        return '';
+      }
+    },
+    carregarCelulas() {
+      const tipoCodigo = this.tipoSelecionado;
+      if (!tipoCodigo) {
+        this.celulas = [];
+        return;
+      }
+      fetch(`http://10.1.0.8:3000/celulas?tipo=${tipoCodigo}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.length && typeof data[0] === 'object' && data[0].celula) {
+            this.celulas = data.map(item => item.celula);
+          } else {
+            this.celulas = data;
+          }
+        })
+        .catch(err => {
+          console.error('Erro ao buscar células:', err);
+        });
+    },
+    carregarMaquinas() {
+      const tipoCodigo = this.tipoSelecionado;
+      if (!this.celulaSelecionada || !tipoCodigo) {
+        this.maquinas = [];
+        return;
+      }
+      fetch(`http://10.1.0.8:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`)
+        .then(res => res.json())
+        .then(data => {
+          this.maquinas = data
+            .map(item => ({
+              id: item.codigo,
+              nome: item.descricao
+            }))
+            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        })
+        .catch(err => {
+          console.error('Erro ao buscar máquinas:', err);
+        });
+    },
 
   enviarHorimetro() {
     if (!this.maquinaSelecionada) {
