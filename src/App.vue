@@ -25,7 +25,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <Config />
+          <Config :atualizar="configKey" />
         </div>
       </div>
     </div>
@@ -157,8 +157,9 @@ button.btn {
 
 .config-icon {
   position: fixed;
-  bottom: 132px;
-  right: 100px;
+  color: #fff;
+  bottom: 6PX;
+  right: 6PX;
   z-index: 1050;
   cursor: pointer;
 }

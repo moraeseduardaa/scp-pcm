@@ -24,6 +24,42 @@ app.get('/celulas', async (req, res) => {
   }
 });
 
+app.put('/operadores/:codigo', async (req, res) => {
+  const { codigo } = req.params;
+  const { nome_operador, setor } = req.body;
+  try {
+    await pool.query(
+      'UPDATE operador SET nome_operador = $1, setor = $2 WHERE codigo = $3',
+      [nome_operador, setor, codigo]
+    );
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Erro ao atualizar operador:', err);
+    res.status(500).send('Erro ao atualizar operador');
+  }
+});
+
+app.get('/operadores', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT codigo, nome_operador, setor FROM operador WHERE status = 'ATIVO' ORDER BY nome_operador");
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao buscar operadores:', err);
+    res.status(500).send('Erro ao buscar operadores');
+  }
+});
+
+// Inativar operador
+app.put('/operadores/:codigo/inativar', async (req, res) => {
+  const { codigo } = req.params;
+  try {
+    await pool.query("UPDATE operador SET status = 'INATIVO' WHERE codigo = $1", [codigo]);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Erro ao inativar operador:', err);
+    res.status(500).send('Erro ao inativar operador');
+  }
+});
 
 app.get('/equipamentos', async (req, res) => {
   const tipo = req.query['tipo'];
