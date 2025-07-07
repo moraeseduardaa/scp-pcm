@@ -4,31 +4,6 @@
       style="background-color: #343a40; color: #fff;" />
 
     <div class="d-flex justify-content-between" style="gap: 2%;">
-      <select name="operador" v-model="operadorSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
-        :disabled="formBloqueado" style="width: 49%; background-color: #343a40; color: #fff;">
-        <option selected disabled hidden value="">Selecionar Operador</option>
-        <option>GABRIEL BARBOSA</option>
-        <option>MARIA APARECIDA</option>
-        <option>ALEX PERASSOLI</option>
-        <option>TAIS MACEDO</option>
-        <option>FELIPE GARCIA</option>
-        <option>LUCIANA PARANHOS</option>
-        <option>CECILIA EMILIANA</option>
-        <option>TAINÃ PAIVA</option>
-        <option>LUCAS ANTÔNIO</option>
-        <option>THAIS VENANCIO</option>
-        <option>GRASIELE FERREIRA</option>
-        <option>LUIZ GUILHERME</option>
-        <option>LEONILDA VICENTE</option>
-        <option>AMANDA NOGUEIRA</option>
-        <option>MARCIANO DE ASSIS</option>
-        <option>LUANA TEIXEIRA</option>
-        <option>NAYARA CAROLINE</option>
-        <option>ALINE VIEIRA</option>
-        <option>YOHANNA GABRIELA</option>
-        <option>WAGNER LUCAS</option>
-      </select>
-
       <select name="tipo" v-model="tipoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
         :disabled="formBloqueado" style="width: 49%; background-color: #343a40; color: #fff;">
         <option selected disabled hidden value="">Selecionar Tipo Equipamento</option>
@@ -36,7 +11,14 @@
         <option :value="1">AGULHA</option>
         <option :value="2">CROCHE</option>
       </select>
+
+      <select name="operador" v-model="operadorSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
+        :disabled="formBloqueado" style="width: 49%; background-color: #343a40; color: #fff;">
+        <option selected disabled hidden value="">Selecionar Operador</option>
+        <option v-for="op in operadores" :key="op">{{ op }}</option>
+      </select>
     </div>
+    
     <div class="d-flex justify-content-between" style="gap: 2%;">
       <select name="celula" v-model="celulaSelecionada" class="form-control cor-text-select mt-4 d-inline-block"
         style="width: 49%; background-color: #343a40; color: #fff;" :disabled="formBloqueado || !tipoSelecionado">
@@ -60,21 +42,7 @@
     <select name="motivo" v-model="motivoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
       :disabled="formBloqueado" style="background-color: #343a40; color: #fff;">
       <option selected disabled hidden value="">Selecionar Motivo da Parada</option>
-      <option>AMARRAÇÃO DE BORRACHA</option>
-      <option>AMARRAÇÃO DE CARGA</option>
-      <option>COMPLEMENTO</option>
-      <option>FALTA DE CARRETEL</option>
-      <option>FALTA DE FUNCIONÁRIO</option>
-      <option>FALTA DE MATÉRIA PRIMA</option>
-      <option>FALTA DE PEDIDO</option>
-      <option>LIBERAÇÃO</option>
-      <option>MANUTENÇÃO</option>
-      <option>PASSAMENTO</option>
-      <option>PROBLEMA NA MATÉRIA PRIMA</option>
-      <option>REGULAGEM</option>
-      <option>REUNIÃO</option>
-      <option>TROCA DE ARTIGO</option>
-      <option>TROCA DE PEDIDO</option>
+      <option v-for="motivo in motivosParada" :key="motivo">{{ motivo }}</option>
     </select>
 
     <div class="mt-4 d-flex gap-4">
@@ -101,7 +69,10 @@ export default {
       operadorSelecionado: '',
       botaoInicioDesabilitado: false,
       paradaAbertaEncontrada: false,
-      formBloqueado: false
+      formBloqueado: false,
+      motivosParada: [],
+      operadoresTodos: [], // todos os operadores com setor
+      operadores: [] // operadores filtrados para o select
     };
   },
   watch: {
@@ -110,6 +81,7 @@ export default {
       this.celulaSelecionada = '';
       this.celulas = [];
       this.maquinas = [];
+      this.filtrarOperadoresPorSetor();
       if (novoTipo) {
         this.carregarCelulas();
       }
@@ -186,6 +158,47 @@ export default {
         .catch(err => {
           console.error('Erro ao buscar máquinas:', err);
         });
+    },
+    async carregarOperadores() {
+      try {
+        const res = await fetch('http://10.1.0.8:3000/operadores');
+        let data = await res.json();
+        if (data && data.Content) {
+          try {
+            data = JSON.parse(data.Content);
+          } catch (e) {}
+        }
+        this.operadoresTodos = Array.isArray(data) ? data : [];
+        this.filtrarOperadoresPorSetor();
+      } catch (e) {
+        this.operadoresTodos = [];
+        this.operadores = [];
+      }
+    },
+    filtrarOperadoresPorSetor() {
+      if (!this.tipoSelecionado) {
+        this.operadores = this.operadoresTodos.map(op => op.nome_operador).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        return;
+      }
+      let setor = '';
+      if (this.tipoSelecionado == 3) setor = 'JACQUARD';
+      else if (this.tipoSelecionado == 1) setor = 'AGULHA';
+      else if (this.tipoSelecionado == 2) setor = 'CROCHE';
+      this.operadores = this.operadoresTodos
+        .filter(op => op.setor && op.setor.toUpperCase() === setor)
+        .map(op => op.nome_operador)
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    },
+    async carregarMotivosParada() {
+      try {
+        const res = await fetch('http://10.1.0.8:3000/motivos-parada');
+        const data = await res.json();
+        this.motivosParada = Array.isArray(data)
+            ? data.sort((a, b) => a.localeCompare(b, 'pt-BR'))
+            : [];
+      } catch (e) {
+        this.motivosParada = [];
+      }
     },
 
     async enviarInicio() {
@@ -305,6 +318,8 @@ export default {
 
   },
   mounted() {
+    this.carregarMotivosParada();
+    this.carregarOperadores();
   }
 }
 </script>

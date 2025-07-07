@@ -16,34 +16,82 @@
         </ul>
 
         <div v-if="telaAtiva === 'operador'">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input bg-dark border-secondary" type="checkbox" id="mostrarInativos"
+                        v-model="mostrarInativos" @change="buscarOperadores">
+                </div>
+                <button class="btn btn-primary btn-sm" @click="abrirInputAdicionar" v-if="!mostrarInputAdicionar">
+                    Adicionar Operador
+                </button>
+            </div>
+            <div v-if="mostrarInputAdicionar" class="mb-3">
+                <div class="row g-2 align-items-center">
+                    <div class="col">
+                        <input v-model="novoOperadorNome" class="form-control" placeholder="Nome do operador" @input="novoOperadorNome = $event.target.value.toUpperCase()" />
+                    </div>
+                    <div class="col">
+                        <input v-model="novoOperadorSetor" class="form-control" placeholder="Setor" @input="novoOperadorSetor = $event.target.value.toUpperCase()" />
+                    </div>
+                    <div class="col-auto d-flex gap-2">
+                        <button class="btn btn-success" @click="adicionarOperador">Salvar</button>
+                        <button class="btn btn-secondary" @click="cancelarAdicionarOperador">Cancelar</button>
+                    </div>
+                </div>
+            </div>
             <div v-if="operadoresDB.length > 0">
-                <button class="btn btn-primary mb-2" @click="adicionarOperador">Adicionar Operador</button>
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mt-4">
                         <thead>
                             <tr>
                                 <th>Nome do Operador</th>
-                                <th >Setor</th>
+                                <th class="position-relative">
+                                    <span class="coluna-com-icone" @click.stop="toggleDropdownSetor">
+                                        Setor <i class="bi bi-arrow-down-short"></i>
+                                    </span>
+                                    <div v-if="dropdownSetor" class="dropdown-menu-custom">
+                                        <div class="dropdown-item" @click="filtroSetor = ''; fecharDropdownSetor()">
+                                            Todos os Setores
+                                        </div>
+                                        <div class="dropdown-item" v-for="setor in setoresUnicos" :key="setor"
+                                            @click="filtroSetor = setor; fecharDropdownSetor()">{{ setor }}</div>
+                                    </div>
+                                </th>
+                                <th v-if="mostrarInativos">Status</th>
                                 <th class="text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="op in operadoresDB" :key="op.codigo">
+                            <tr v-for="op in operadoresFiltrados" :key="op.codigo">
                                 <td v-if="editandoOperador === op.codigo">
-                                    <input v-model="editNomeOperador" class="form-control" />
+                                    <input v-model="editNomeOperador" class="form-control" @input="editNomeOperador = $event.target.value.toUpperCase()" />
                                 </td>
                                 <td v-else>{{ op.nome_operador }}</td>
                                 <td v-if="editandoOperador === op.codigo">
-                                    <input v-model="editSetor" class="form-control" />
+                                    <input v-model="editSetor" class="form-control" @input="editSetor = $event.target.value.toUpperCase()" />
                                 </td>
                                 <td v-else>{{ op.setor }}</td>
+                                <td v-if="mostrarInativos" class="align-middle text-uppercase fw-bold">
+                                    {{ op.status }}
+                                </td>
                                 <td class="text-center align-middle">
                                     <div class="d-flex justify-content-center gap-2">
-                                        <button v-if="editandoOperador === op.codigo" class="btn btn-success btn-sm" @click="salvarEdicaoOperador(op.codigo)">Salvar</button>
-                                        <button v-if="editandoOperador === op.codigo" class="btn btn-secondary btn-sm" @click="cancelarEdicaoOperador">Cancelar</button>
+                                        <template v-if="mostrarInativos">
+                                            <button class="btn btn-success btn-sm"
+                                                @click="ativarOperador(op.codigo)">Ativar</button>
+                                        </template>
                                         <template v-else>
-                                            <button class="btn btn-secondary btn-sm" @click="editarOperador(op)">Editar</button>
-                                            <button class="btn btn-danger btn-sm" @click="inativarOperador(op.codigo)">Inativar</button>
+                                            <button v-if="editandoOperador === op.codigo" class="btn btn-success btn-sm"
+                                                @click="salvarEdicaoOperador(op.codigo)">Salvar</button>
+                                            <button v-if="editandoOperador === op.codigo"
+                                                class="btn btn-secondary btn-sm"
+                                                @click="cancelarEdicaoOperador">Cancelar</button>
+                                            <template v-else>
+                                                <button class="btn btn-secondary btn-sm"
+                                                    @click="editarOperador(op)">Editar</button>
+                                                <button class="btn btn-danger btn-sm"
+                                                    @click="inativarOperador(op.codigo)">Inativar</button>
+                                            </template>
                                         </template>
                                     </div>
                                 </td>
@@ -53,20 +101,49 @@
                 </div>
             </div>
             <div v-else class="text-center mt-5">
-                <p>Nenhum operador cadastrado.</p>
+                <p>Nenhum operador inativo.</p>
             </div>
         </div>
 
         <div v-if="telaAtiva === 'motivo'">
-            <input v-model="novoMotivo" class="form-control my-3" placeholder="Motivo" />
-            <button class="btn btn-success mb-3" @click="adicionarMotivo">Adicionar</button>
-            <ul class="list-group">
-                <li v-for="(motivo, index) in motivos" :key="index" class="list-group-item bg-dark text-white">
-                    {{ motivo }}
-                </li>
-            </ul>
+                <div class="d-flex justify-content-end mb-4">
+                    <button class="btn btn-primary btn-sm" @click="abrirInputAdicionarMotivo"
+                        v-if="!mostrarInputAdicionarMotivo">Adicionar Motivo</button>
+                </div>
+
+                <div v-if="mostrarInputAdicionarMotivo" class="mb-3">
+                    <div class="row g-2 align-items-center">
+                        <div class="col"></div>
+                        <div class="row g-2 align-items-center"></div>
+                        <div class="col">
+                            <input v-model="novoMotivo" class="form-control" placeholder="Novo motivo de parada" @input="novoMotivo = $event.target.value.toUpperCase()" />
+                        </div>
+                        <div class="col-auto d-flex gap-2">
+                            <button class="btn btn-success" @click="adicionarMotivo">Salvar</button>
+                            <button class="btn btn-secondary" @click="cancelarAdicionarMotivo">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Motivo de Parada</th>
+                                <th style="width: 1px;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(motivo, index) in motivos" :key="index">
+                                <td>{{ motivo }}</td>
+                                <td>
+                                    <button class="btn btn-danger btn-sm" @click="removerMotivo(index)">Remover</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-    </div>
 </template>
 
 <script>
@@ -82,13 +159,33 @@ export default {
             editNomeOperador: '',
             editSetor: '',
             novoMotivo: "",
-            motivos: []
+            motivos: [],
+            mostrarInputAdicionar: false,
+            novoOperadorNome: '',
+            novoOperadorSetor: '',
+            mostrarInativos: false,
+            filtroSetor: '',
+            dropdownSetor: false,
+            mostrarInputAdicionarMotivo: false,
         };
+    },
+    computed: {
+        setoresUnicos() {
+            return [...new Set(this.operadoresDB.map(op => op.setor).filter(Boolean))].sort();
+        },
+        operadoresFiltrados() {
+            if (!this.filtroSetor) return this.operadoresDB;
+            return this.operadoresDB.filter(op => op.setor === this.filtroSetor);
+        }
     },
     methods: {
         async buscarOperadores() {
             try {
-                const res = await fetch('http://10.1.0.8:3000/operadores');
+                let url = 'http://10.1.0.8:3000/operadores';
+                if (this.mostrarInativos) {
+                    url += '?status=INATIVO';
+                }
+                const res = await fetch(url);
                 let data = await res.json();
                 if (data && data.Content) {
                     try {
@@ -102,6 +199,29 @@ export default {
                 console.error('Erro ao buscar operadores:', e);
             }
         },
+        async carregarMotivos() {
+            try {
+                const res = await fetch('http://10.1.0.8:3000/motivos-parada');
+                const data = await res.json();
+                this.motivos = Array.isArray(data)
+                    ? data.sort((a, b) => a.localeCompare(b, 'pt-BR'))
+                    : [];
+            } catch (e) {
+                this.motivos = [];
+            }
+        },
+        abrirInputAdicionar() {
+            this.mostrarInputAdicionar = true;
+            this.$nextTick(() => {
+                const input = this.$el.querySelector('input[placeholder="Nome do operador"]');
+                if (input) input.focus();
+            });
+        },
+        cancelarAdicionarOperador() {
+            this.mostrarInputAdicionar = false;
+            this.novoOperadorNome = '';
+            this.novoOperadorSetor = '';
+        },
         editarOperador(op) {
             this.editandoOperador = op.codigo;
             this.editNomeOperador = op.nome_operador;
@@ -111,6 +231,17 @@ export default {
             this.editandoOperador = null;
             this.editNomeOperador = '';
             this.editSetor = '';
+        },
+        async ativarOperador(codigo) {
+            try {
+                await fetch(`http://10.1.0.8:3000/operadores/${codigo}/ativar`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                this.buscarOperadores();
+            } catch (e) {
+                alert('Erro ao ativar operador!');
+            }
         },
         async salvarEdicaoOperador(codigo) {
             try {
@@ -138,17 +269,79 @@ export default {
                 }
             }
         },
-        adicionarOperador() {
-            if (this.novoOperador.trim()) {
-                this.novoOperador = "";
+        async adicionarOperador() {
+            if (!this.novoOperadorNome.trim() || !this.novoOperadorSetor.trim()) {
+                alert('Preencha o nome e o setor!');
+                return;
+            }
+            try {
+                await fetch('http://10.1.0.8:3000/operadores', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome_operador: this.novoOperadorNome.trim(), setor: this.novoOperadorSetor.trim() })
+                });
+                this.novoOperadorNome = '';
+                this.novoOperadorSetor = '';
+                this.mostrarInputAdicionar = false;
                 this.buscarOperadores();
+            } catch (e) {
+                alert('Erro ao adicionar operador!');
             }
         },
-        adicionarMotivo() {
+        async adicionarMotivo() {
             if (this.novoMotivo.trim()) {
-                this.motivos.push(this.novoMotivo.trim());
-                this.novoMotivo = "";
+                try {
+                    const res = await fetch('http://10.1.0.8:3000/motivos-parada', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ motivo: this.novoMotivo.trim() })
+                    });
+                    if (res.ok) {
+                        this.novoMotivo = '';
+                        this.mostrarInputAdicionarMotivo = false;
+                        await this.carregarMotivos();
+                    } else {
+                        const err = await res.json();
+                        alert(err.error || 'Erro ao adicionar motivo');
+                    }
+                } catch {
+                    alert('Erro ao adicionar motivo');
+                }
             }
+        },
+        async removerMotivo(index) {
+            const motivo = this.motivos[index];
+            if (!motivo) return;
+            try {
+                const res = await fetch(`http://10.1.0.8:3000/motivos-parada/${encodeURIComponent(motivo)}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    await this.carregarMotivos();
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'Erro ao remover motivo');
+                }
+            } catch {
+                alert('Erro ao remover motivo');
+            }
+        },
+        abrirInputAdicionarMotivo() {
+            this.mostrarInputAdicionarMotivo = true;
+            this.$nextTick(() => {
+                const input = this.$el.querySelector('input[placeholder="Novo motivo de parada"]');
+                if (input) input.focus();
+            });
+        },
+        cancelarAdicionarMotivo() {
+            this.mostrarInputAdicionarMotivo = false;
+            this.novoMotivo = '';
+        },
+        toggleDropdownSetor() {
+            this.dropdownSetor = !this.dropdownSetor;
+        },
+        fecharDropdownSetor() {
+            this.dropdownSetor = false;
         }
     },
     watch: {
@@ -160,6 +353,7 @@ export default {
     },
     mounted() {
         this.buscarOperadores();
+        this.carregarMotivos();
     }
 };
 </script>
@@ -177,5 +371,42 @@ body {
 .nav-tabs .nav-link.active {
     border-color: #6c757d #6c757d #343a40;
     font-weight: bold;
+}
+
+input.form-control {
+    background-color: #343a40 !important;
+    color: #fff !important;
+    border: 1px solid #7c838a;
+}
+
+input.form-control::placeholder {
+    color: #ccc !important;
+    opacity: 1;
+}
+
+.dropdown-menu-custom {
+    position: absolute;
+    z-index: 10;
+    background: #23272b;
+    border: 1px solid #444;
+    border-radius: 0.25rem;
+    min-width: 160px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    margin-top: 0.5rem;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    color: #fff;
+}
+
+.dropdown-item:hover {
+    background: #343a40;
+}
+
+.coluna-com-icone {
+    cursor: pointer;
+    user-select: none;
 }
 </style>
