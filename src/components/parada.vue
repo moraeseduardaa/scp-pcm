@@ -35,7 +35,7 @@
         style="width: 49%; background-color: #343a40; color: #fff;">
         <option disabled value="">Selecionar Equipamento</option>
         <option v-for="maquina in maquinas" :key="maquina.id" :value="maquina.id">
-          {{ maquina.id }} - {{ maquina.nome }}
+          {{ maquina.nome }}
         </option>
       </select>
     </div>
@@ -145,15 +145,31 @@ export default {
         this.maquinas = [];
         return;
       }
-      fetch(`http://10.1.0.8:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`)
-        .then(res => res.json())
+      
+      console.log('=== DEBUG CARREGAR MAQUINAS ===');
+      console.log('tipoSelecionado:', this.tipoSelecionado);
+      console.log('celulaSelecionada:', this.celulaSelecionada);
+      
+      const url = `http://10.1.0.8:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`;
+      console.log('URL da requisição:', url);
+      
+      fetch(url)
+        .then(res => {
+          console.log('Status da resposta:', res.status);
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
         .then(data => {
+          console.log('Dados recebidos do backend:', data);
           this.maquinas = data
             .map(item => ({
               id: item.codigo,
               nome: item.descricao
             }))
             .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+          console.log('Maquinas processadas:', this.maquinas);
         })
         .catch(err => {
           console.error('Erro ao buscar máquinas:', err);

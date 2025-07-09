@@ -37,23 +37,22 @@
       style="width: 49%; background-color: #343a40; color: #fff;">
       <option disabled value="">Selecionar Equipamento</option>
       <option v-for="maquina in maquinas" :key="maquina.id" :value="maquina.id">
-        {{ maquina.id }} - {{ maquina.nome }}
+        {{ maquina.nome }}
       </option>
     </select>
 
-    <select name="periodo" class="form-control cor-text-select mt-4 d-inline-block"
+    <select name="periodo" v-model="periodoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
       style="width: 49%; background-color: #343a40; color: #fff;">
-      <option selected disabled hidden>Selecionar Período</option>
-      <option>INTERVALO 1° TURNO</option>
-      <option>INTERVALO 2° TURNO</option>
-      <option>FIM DO 1° TURNO</option>
-      <option>FIM DO 2° TURNO</option>
+      <option selected disabled hidden value="">Selecionar Período</option>
+      <option value="FIM DO 1° TURNO">FIM DO 1° TURNO</option>
+      <option value="FIM DO 2° TURNO">FIM DO 2° TURNO</option>
     </select>
     </div>
 
     <input
       type="time"
       name="horimetro"
+      v-model="horimetroValue"
       class="form-control cor-text-select mt-4 d-inline-block"
       style="background-color: #343a40; color: #fff;"
       id="horimetro"
@@ -75,7 +74,9 @@ export default {
       celulas: [],
       celulaSelecionada: '',
       maquinas: [],
-      maquinaSelecionada: ''
+      maquinaSelecionada: '',
+      horimetroValue: '',
+      periodoSelecionado: ''
     };
   },
   watch: {
@@ -165,27 +166,47 @@ export default {
       alert('Selecione uma máquina');
       return;
     }
+    
+    if (!this.periodoSelecionado) {
+      alert('Selecione um período');
+      return;
+    }
+    
+    if (!this.horimetroValue) {
+      alert('Preencha o horímetro');
+      return;
+    }
 
-    fetch('http://10.1.0.238:3000/horimetro', {
+    const payload = {
+      equipamento: this.maquinaSelecionada,
+      dataHora: this.dataHora,
+      horimetro: this.horimetroValue,
+      periodo: this.periodoSelecionado
+    };
+
+    fetch('http://10.1.0.8:3000/horimetro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        dataHora: this.dataHora,
-        operadorId: 1, 
-        maquinaId: this.maquinaSelecionada,
-        celula: this.celulaSelecionada
-      })
+      body: JSON.stringify(payload)
     })
       .then(res => {
         if (res.ok) {
           alert('Horímetro salvo com sucesso!');
-          this.maquinaSelecionada = ''; 
-          throw new Error('Erro ao salvar');
+          this.maquinaSelecionada = '';
+          this.celulaSelecionada = '';
+          this.tipoSelecionado = '';
+          this.horimetroValue = '';
+          this.periodoSelecionado = '';
+          this.dataHora = this.getLocalDateTime();
+        } else {
+          return res.text().then(text => {
+            throw new Error(text || 'Erro ao salvar');
+          });
         }
       })
       .catch(err => {
         console.error(err);
-        alert('Erro ao salvar horímetro');
+        alert(err.message || 'Erro ao salvar horímetro');
       });
     }
   },

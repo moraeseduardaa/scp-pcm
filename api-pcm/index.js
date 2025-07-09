@@ -35,12 +35,26 @@ app.get('/equipamentos', async (req, res) => {
   console.log('req.query keys:', Object.keys(req.query));
   console.log('celula diretamente acessado:', req.query['celula']);
 
+  if (!tipo || !celula) {
+    return res.status(400).json({ error: 'Tipo e célula são obrigatórios' });
+  }
 
-  const sql = `SELECT codigo, descricao FROM equipamento
-               WHERE status = 'ATIVO' AND tipo = $1 AND celula = $2`;
-  const params = [tipo, celula];
+  const sqlCelula = `SELECT codigo FROM celula WHERE celula = $1 AND tipo_equipamento = $2`;
+  const paramsCelula = [celula, tipo];
 
   try {
+    const resultCelula = await pool.query(sqlCelula, paramsCelula);
+    
+    if (resultCelula.rows.length === 0) {
+      return res.json([]);
+    }
+    
+    const codCelula = resultCelula.rows[0].codigo;
+    
+    const sql = `SELECT codigo, descricao FROM equipamento
+                 WHERE status = 'ATIVO' AND tipo = $1 AND cod_celula = $2`;
+    const params = [tipo, codCelula];
+
     const result = await pool.query(sql, params);
     res.json(result.rows);
   } catch (err) {
@@ -109,6 +123,18 @@ app.get('/parada/aberta/:equipamento', async (req, res) => {
   }
 });
 
+app.get('/motivos-parada', (req, res) => {
+  fs.readFile(MOTIVOS_PATH, 'utf8', (err, data) => {
+    if (err) return res.status(500).json({ error: 'Erro ao ler motivos' });
+    try {
+      const motivos = JSON.parse(data);
+      res.json(motivos);
+    } catch {
+      res.status(500).json({ error: 'Erro ao parsear motivos' });
+    }
+  });
+});
+
 app.post('/operadores', async (req, res) => {
   const { nome_operador, setor } = req.body;
   if (!nome_operador || !setor) {
@@ -156,18 +182,69 @@ app.post('/parada/fim', async (req, res) => {
   }
 });
 
-app.post('/horimetro', async (req, res) => {
-  const { dataHora, operadorId, maquinaId } = req.body;
+app.post('/motivos-parada', (req, res) => {
+  const { motivo } = req.body;
+  if (!motivo || typeof motivo !== 'string') return res.status(400).json({ error: 'Motivo inválido' });
+  fs.readFile(MOTIVOS_PATH, 'utf8', (err, data) => {
+    let motivos = [];
+    if (!err) {
+      try { motivos = JSON.parse(data); } catch {}
+    }
+    if (motivos.includes(motivo)) return res.status(409).json({ error: 'Motivo já existe' });
+    motivos.push(motivo);
+    motivos.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    fs.writeFile(MOTIVOS_PATH, JSON.stringify(motivos, null, 2), err2 => {
+      if (err2) return res.status(500).json({ error: 'Erro ao salvar motivo' });
+      res.status(201).json(motivos);
+    });
+  });
+});
 
+app.post('/horimetro', async (req, res) => {
+  const { equipamento, dataHora, horimetro, periodo } = req.body;
+  if (!equipamento || !dataHora || !horimetro || !periodo) {
+    return res.status(400).send('Todos os campos são obrigatórios');
+  }
+  const dataValida = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/.test(dataHora);
+  if (!dataValida) {
+    return res.status(400).send('DataHora em formato inválido');
+  }
+  if (typeof horimetro !== 'string' && typeof horimetro !== 'number') {
+    return res.status(400).send('Horímetro inválido');
+  }
   try {
-    await pool.query(
-      'INSERT INTO horimetros (data_hora, operador_id, equipamento_id) VALUES ($1, $2, $3)',
-      [dataHora, operadorId, maquinaId]
-    );
-    res.status(201).send('Horímetro salvo com sucesso');
+    if (periodo === 'FIM DO 1° TURNO') {
+      const busca = await pool.query(
+        "SELECT * FROM horimetro WHERE equipamento = $1 AND data2 IS NULL",
+        [equipamento]
+      );
+      if (busca.rows.length > 0) {
+        return res.status(409).send('Finalize o 2º turno.');
+      }
+      await pool.query(
+        'INSERT INTO horimetro (equipamento, data1, horimetro1) VALUES ($1, $2, $3)',
+        [equipamento, dataHora, horimetro]
+      );
+      res.status(201).send('Horímetro salvo com sucesso');
+    } else if (periodo === 'FIM DO 2° TURNO') {
+      const busca = await pool.query(
+        "SELECT * FROM horimetro WHERE equipamento = $1 AND data2 IS NULL ORDER BY data1 DESC LIMIT 1",
+        [equipamento]
+      );
+      if (busca.rows.length === 0) {
+        return res.status(404).send('Registro do 1º turno não encontrado');
+      }
+      await pool.query(
+        'UPDATE horimetro SET data2 = $1, horimetro2 = $2 WHERE equipamento = $3 AND data2 IS NULL AND data1 = $4',
+        [dataHora, horimetro, equipamento, busca.rows[0].data1]
+      );
+      res.status(200).send('Horímetro salvo com sucesso');
+    } else {
+      res.status(400).send('Período inválido');
+    }
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Erro ao salvar horímetro');
+    console.error('Erro ao salvar horímetro:', err);
+    res.status(500).send('Erro ao salvar horímetro: ' + (err.detail || err.message));
   }
 });
 
@@ -208,39 +285,6 @@ app.put('/operadores/:codigo/ativar', async (req, res) => {
   }
 });
 
-// Listar motivos de parada
-app.get('/motivos-parada', (req, res) => {
-  fs.readFile(MOTIVOS_PATH, 'utf8', (err, data) => {
-    if (err) return res.status(500).json({ error: 'Erro ao ler motivos' });
-    try {
-      const motivos = JSON.parse(data);
-      res.json(motivos);
-    } catch {
-      res.status(500).json({ error: 'Erro ao parsear motivos' });
-    }
-  });
-});
-
-// Adicionar motivo de parada
-app.post('/motivos-parada', (req, res) => {
-  const { motivo } = req.body;
-  if (!motivo || typeof motivo !== 'string') return res.status(400).json({ error: 'Motivo inválido' });
-  fs.readFile(MOTIVOS_PATH, 'utf8', (err, data) => {
-    let motivos = [];
-    if (!err) {
-      try { motivos = JSON.parse(data); } catch {}
-    }
-    if (motivos.includes(motivo)) return res.status(409).json({ error: 'Motivo já existe' });
-    motivos.push(motivo);
-    motivos.sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    fs.writeFile(MOTIVOS_PATH, JSON.stringify(motivos, null, 2), err2 => {
-      if (err2) return res.status(500).json({ error: 'Erro ao salvar motivo' });
-      res.status(201).json(motivos);
-    });
-  });
-});
-
-// Remover motivo de parada
 app.delete('/motivos-parada/:motivo', (req, res) => {
   const motivo = decodeURIComponent(req.params.motivo);
   fs.readFile(MOTIVOS_PATH, 'utf8', (err, data) => {
