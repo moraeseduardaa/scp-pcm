@@ -128,7 +128,3 @@ C:\backend-app\ (backend Node.js)
 - Backend roda por PM2, independente do seu computador.
 - PM2 garante que o backend sempre inicie junto do servidor.
 
----
-
-> Se for Linux, o processo é parecido, só muda o jeito de instalar Node.js/PM2 e liberar portas.
-> Se quiser exemplos para Linux, é só pedir!
