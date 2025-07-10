@@ -126,7 +126,7 @@ export default {
         this.celulas = [];
         return;
       }
-      fetch(`http://10.1.0.8:3000/celulas?tipo=${tipoCodigo}`)
+      fetch(`http://10.1.1.247:3000/celulas?tipo=${tipoCodigo}`)
         .then(res => res.json())
         .then(data => {
           if (data.length && typeof data[0] === 'object' && data[0].celula) {
@@ -150,7 +150,7 @@ export default {
       console.log('tipoSelecionado:', this.tipoSelecionado);
       console.log('celulaSelecionada:', this.celulaSelecionada);
       
-      const url = `http://10.1.0.8:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`;
+      const url = `http://10.1.1.247:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`;
       console.log('URL da requisição:', url);
       
       fetch(url)
@@ -177,7 +177,7 @@ export default {
     },
     async carregarOperadores() {
       try {
-        const res = await fetch('http://10.1.0.8:3000/operadores');
+        const res = await fetch('http://10.1.1.247:3000/operadores');
         let data = await res.json();
         if (data && data.Content) {
           try {
@@ -207,7 +207,7 @@ export default {
     },
     async carregarMotivosParada() {
       try {
-        const res = await fetch('http://10.1.0.8:3000/motivos-parada');
+        const res = await fetch('http://10.1.1.247:3000/motivos-parada');
         const data = await res.json();
         this.motivosParada = Array.isArray(data)
             ? data.sort((a, b) => a.localeCompare(b, 'pt-BR'))
@@ -233,7 +233,7 @@ export default {
         return;
       }
 
-      fetch('http://10.1.0.8:3000/parada/inicio', {
+      fetch('http://10.1.1.247:3000/parada/inicio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -266,7 +266,7 @@ export default {
       if (!this.maquinaSelecionada) return;
 
       try {
-        const response = await fetch(`http://10.1.0.8:3000/parada/aberta/${this.maquinaSelecionada}`);
+        const response = await fetch(`http://10.1.1.247:3000/parada/aberta/${this.maquinaSelecionada}`);
 
         if (response.status === 200) {
           this.paradaAbertaEncontrada = true;
@@ -300,7 +300,7 @@ export default {
         return;
       }
 
-      fetch('http://10.1.0.8:3000/parada/fim', {
+      fetch('http://10.1.1.247:3000/parada/fim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

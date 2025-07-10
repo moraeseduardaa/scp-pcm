@@ -127,7 +127,7 @@ export default {
         this.celulas = [];
         return;
       }
-      fetch(`http://10.1.0.8:3000/celulas?tipo=${tipoCodigo}`)
+      fetch(`http://10.1.1.247:3000/celulas?tipo=${tipoCodigo}`)
         .then(res => res.json())
         .then(data => {
           if (data.length && typeof data[0] === 'object' && data[0].celula) {
@@ -146,7 +146,7 @@ export default {
         this.maquinas = [];
         return;
       }
-      fetch(`http://10.1.0.8:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`)
+      fetch(`http://10.1.1.247:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`)
         .then(res => res.json())
         .then(data => {
           this.maquinas = data
@@ -184,7 +184,7 @@ export default {
       periodo: this.periodoSelecionado
     };
 
-    fetch('http://10.1.0.8:3000/horimetro', {
+    fetch('http://10.1.1.247:3000/horimetro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

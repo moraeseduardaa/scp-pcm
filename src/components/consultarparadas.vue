@@ -132,7 +132,7 @@ export default {
     methods: {
         async carregarParadas() {
             try {
-                const res = await fetch('http://10.1.0.8:3000/paradas/abertas');
+                const res = await fetch('http://10.1.1.247:3000/paradas/abertas');
                 this.paradas = await res.json();
             } catch (err) {
                 console.error('Erro ao carregar paradas abertas:', err);

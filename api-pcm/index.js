@@ -1,4 +1,3 @@
-//npx nodemon index.js
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db'); 
@@ -11,6 +10,10 @@ const MOTIVOS_PATH = path.join(__dirname, 'motivos.json');
 
 app.use(cors());
 app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.send('Backend rodando!');
+});
 
 app.get('/celulas', async (req, res) => {
   const tipo = req.query.tipo;
@@ -303,5 +306,5 @@ app.delete('/motivos-parada/:motivo', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Servidor rodando em http://10.1.0.8:${port}`);
+  console.log(`Servidor rodando em http://10.1.1.247:${port}`);
 });

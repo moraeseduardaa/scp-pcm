@@ -181,7 +181,7 @@ export default {
     methods: {
         async buscarOperadores() {
             try {
-                let url = 'http://10.1.0.8:3000/operadores';
+                let url = 'http://10.1.1.247:3000/operadores';
                 if (this.mostrarInativos) {
                     url += '?status=INATIVO';
                 }
@@ -201,7 +201,7 @@ export default {
         },
         async carregarMotivos() {
             try {
-                const res = await fetch('http://10.1.0.8:3000/motivos-parada');
+                const res = await fetch('http://10.1.1.247:3000/motivos-parada');
                 const data = await res.json();
                 this.motivos = Array.isArray(data)
                     ? data.sort((a, b) => a.localeCompare(b, 'pt-BR'))
@@ -234,7 +234,7 @@ export default {
         },
         async ativarOperador(codigo) {
             try {
-                await fetch(`http://10.1.0.8:3000/operadores/${codigo}/ativar`, {
+                await fetch(`http://10.1.1.247:3000/operadores/${codigo}/ativar`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -245,7 +245,7 @@ export default {
         },
         async salvarEdicaoOperador(codigo) {
             try {
-                await fetch(`http://10.1.0.8:3000/operadores/${codigo}`, {
+                await fetch(`http://10.1.1.247:3000/operadores/${codigo}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nome_operador: this.editNomeOperador, setor: this.editSetor })
@@ -259,7 +259,7 @@ export default {
         async inativarOperador(codigo) {
             if (confirm('Tem certeza que deseja inativar este operador?')) {
                 try {
-                    await fetch(`http://10.1.0.8:3000/operadores/${codigo}/inativar`, {
+                    await fetch(`http://10.1.1.247:3000/operadores/${codigo}/inativar`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' }
                     });
@@ -275,7 +275,7 @@ export default {
                 return;
             }
             try {
-                await fetch('http://10.1.0.8:3000/operadores', {
+                await fetch('http://10.1.1.247:3000/operadores', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nome_operador: this.novoOperadorNome.trim(), setor: this.novoOperadorSetor.trim() })
@@ -291,7 +291,7 @@ export default {
         async adicionarMotivo() {
             if (this.novoMotivo.trim()) {
                 try {
-                    const res = await fetch('http://10.1.0.8:3000/motivos-parada', {
+                    const res = await fetch('http://10.1.1.247:3000/motivos-parada', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ motivo: this.novoMotivo.trim() })
@@ -313,7 +313,7 @@ export default {
             const motivo = this.motivos[index];
             if (!motivo) return;
             try {
-                const res = await fetch(`http://10.1.0.8:3000/motivos-parada/${encodeURIComponent(motivo)}`, {
+                const res = await fetch(`http://10.1.1.247:3000/motivos-parada/${encodeURIComponent(motivo)}`, {
                     method: 'DELETE'
                 });
                 if (res.ok) {
