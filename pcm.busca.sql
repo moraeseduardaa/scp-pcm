@@ -36,3 +36,14 @@ set tipo_equipamento = 2
 where codigo = 9;
 
 TRUNCATE TABLE horimetro RESTART IDENTITY;
+
+CREATE TABLE motivos_parada (
+    codigo SERIAL PRIMARY KEY,
+    motivo VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(10) NOT NULL DEFAULT 'ATIVO'
+);
+
+SELECT codigo, motivo, status 
+FROM motivos_parada 
+WHERE status = 'ATIVO'
+ORDER BY motivo;

@@ -28,10 +28,12 @@
             <div v-if="mostrarInputAdicionar" class="mb-3">
                 <div class="row g-2 align-items-center">
                     <div class="col">
-                        <input v-model="novoOperadorNome" class="form-control" placeholder="Nome do operador" @input="novoOperadorNome = $event.target.value.toUpperCase()" />
+                        <input v-model="novoOperadorNome" class="form-control" placeholder="Nome do operador"
+                            @input="novoOperadorNome = $event.target.value.toUpperCase()" />
                     </div>
                     <div class="col">
-                        <input v-model="novoOperadorSetor" class="form-control" placeholder="Setor" @input="novoOperadorSetor = $event.target.value.toUpperCase()" />
+                        <input v-model="novoOperadorSetor" class="form-control" placeholder="Setor"
+                            @input="novoOperadorSetor = $event.target.value.toUpperCase()" />
                     </div>
                     <div class="col-auto d-flex gap-2">
                         <button class="btn btn-success" @click="adicionarOperador">Salvar</button>
@@ -64,11 +66,13 @@
                         <tbody>
                             <tr v-for="op in operadoresFiltrados" :key="op.codigo">
                                 <td v-if="editandoOperador === op.codigo">
-                                    <input v-model="editNomeOperador" class="form-control" @input="editNomeOperador = $event.target.value.toUpperCase()" />
+                                    <input v-model="editNomeOperador" class="form-control"
+                                        @input="editNomeOperador = $event.target.value.toUpperCase()" />
                                 </td>
                                 <td v-else>{{ op.nome_operador }}</td>
                                 <td v-if="editandoOperador === op.codigo">
-                                    <input v-model="editSetor" class="form-control" @input="editSetor = $event.target.value.toUpperCase()" />
+                                    <input v-model="editSetor" class="form-control"
+                                        @input="editSetor = $event.target.value.toUpperCase()" />
                                 </td>
                                 <td v-else>{{ op.setor }}</td>
                                 <td v-if="mostrarInativos" class="align-middle text-uppercase fw-bold">
@@ -106,44 +110,79 @@
         </div>
 
         <div v-if="telaAtiva === 'motivo'">
-                <div class="d-flex justify-content-end mb-4">
-                    <button class="btn btn-primary btn-sm" @click="abrirInputAdicionarMotivo"
-                        v-if="!mostrarInputAdicionarMotivo">Adicionar Motivo</button>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input bg-dark border-secondary" type="checkbox" id="mostrarInativosMotivos"
+                        v-model="mostrarInativosMotivos" @change="carregarMotivos">
                 </div>
+                <button class="btn btn-primary btn-sm" @click="abrirInputAdicionarMotivo"
+                    v-if="!mostrarInputAdicionarMotivo">Adicionar Motivo</button>
+            </div>
 
-                <div v-if="mostrarInputAdicionarMotivo" class="mb-3">
-                    <div class="row g-2 align-items-center">
-                        <div class="col"></div>
-                        <div class="row g-2 align-items-center"></div>
-                        <div class="col">
-                            <input v-model="novoMotivo" class="form-control" placeholder="Novo motivo de parada" @input="novoMotivo = $event.target.value.toUpperCase()" />
-                        </div>
-                        <div class="col-auto d-flex gap-2">
-                            <button class="btn btn-success" @click="adicionarMotivo">Salvar</button>
-                            <button class="btn btn-secondary" @click="cancelarAdicionarMotivo">Cancelar</button>
-                        </div>
+            <div v-if="mostrarInputAdicionarMotivo" class="mb-3">
+                <div class="row g-2 align-items-center">
+                    <div class="col">
+                        <input v-model="novoMotivo" class="form-control" placeholder="Novo motivo de parada"
+                            @input="novoMotivo = $event.target.value.toUpperCase()" />
+                    </div>
+                    <div class="col-auto d-flex gap-2">
+                        <button class="btn btn-success" @click="adicionarMotivo">Salvar</button>
+                        <button class="btn btn-secondary" @click="cancelarAdicionarMotivo">Cancelar</button>
                     </div>
                 </div>
+            </div>
+            
+            <div v-if="motivosDetalhes.length > 0">
                 <div class="table-responsive">
-                    <table class="table table-dark table-hover">
+                    <table class="table table-dark table-hover mt-4">
                         <thead>
                             <tr>
                                 <th>Motivo de Parada</th>
-                                <th style="width: 1px;">Ações</th>
+                                <th v-if="mostrarInativosMotivos">Status</th>
+                                <th class="text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(motivo, index) in motivos" :key="index">
-                                <td>{{ motivo }}</td>
-                                <td>
-                                    <button class="btn btn-danger btn-sm" @click="removerMotivo(index)">Remover</button>
+                            <tr v-for="motivo in motivosDetalhes" :key="motivo.codigo">
+                                <td v-if="editandoMotivo === motivo.codigo">
+                                    <input v-model="editNomeMotivo" class="form-control"
+                                        @input="editNomeMotivo = $event.target.value.toUpperCase()" />
+                                </td>
+                                <td v-else>{{ motivo.motivo }}</td>
+                                <td v-if="mostrarInativosMotivos" class="align-middle text-uppercase fw-bold">
+                                    {{ motivo.status }}
+                                </td>
+                                <td class="text-center align-middle">
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <template v-if="mostrarInativosMotivos">
+                                            <button class="btn btn-success btn-sm"
+                                                @click="ativarMotivo(motivo.codigo)">Ativar</button>
+                                        </template>
+                                        <template v-else>
+                                            <button v-if="editandoMotivo === motivo.codigo" class="btn btn-success btn-sm"
+                                                @click="salvarEdicaoMotivo(motivo.codigo)">Salvar</button>
+                                            <button v-if="editandoMotivo === motivo.codigo"
+                                                class="btn btn-secondary btn-sm"
+                                                @click="cancelarEdicaoMotivo">Cancelar</button>
+                                            <template v-else>
+                                                <button class="btn btn-secondary btn-sm"
+                                                    @click="editarMotivo(motivo)">Editar</button>
+                                                <button class="btn btn-danger btn-sm"
+                                                    @click="inativarMotivo(motivo.codigo)">Inativar</button>
+                                            </template>
+                                        </template>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
+            <div v-else class="text-center mt-5">
+                <p>{{ mostrarInativosMotivos ? 'Nenhum motivo inativo.' : 'Nenhum motivo cadastrado.' }}</p>
+            </div>
         </div>
+    </div>
 </template>
 
 <script>
@@ -160,10 +199,14 @@ export default {
             editSetor: '',
             novoMotivo: "",
             motivos: [],
+            motivosDetalhes: [],
+            editandoMotivo: null,
+            editNomeMotivo: '',
             mostrarInputAdicionar: false,
             novoOperadorNome: '',
             novoOperadorSetor: '',
             mostrarInativos: false,
+            mostrarInativosMotivos: false,
             filtroSetor: '',
             dropdownSetor: false,
             mostrarInputAdicionarMotivo: false,
@@ -201,12 +244,23 @@ export default {
         },
         async carregarMotivos() {
             try {
-                const res = await fetch('http://10.1.1.247:3000/motivos-parada');
-                const data = await res.json();
-                this.motivos = Array.isArray(data)
-                    ? data.sort((a, b) => a.localeCompare(b, 'pt-BR'))
-                    : [];
+                let url = 'http://10.1.1.247:3000/motivos-parada';
+                if (this.mostrarInativosMotivos) {
+                    url += '?status=INATIVO';
+                }
+                const res = await fetch(url, {
+                    headers: {
+                        'X-Detalhes': 'true'
+                    }
+                });
+                let data = await res.json();
+
+                this.motivosDetalhes = Array.isArray(data) ? data : [];
+
+                this.motivos = this.motivosDetalhes.map(m => m.motivo || m);
             } catch (e) {
+                console.error('Erro ao carregar motivos:', e);
+                this.motivosDetalhes = [];
                 this.motivos = [];
             }
         },
@@ -309,21 +363,33 @@ export default {
                 }
             }
         },
-        async removerMotivo(index) {
-            const motivo = this.motivos[index];
-            if (!motivo) return;
-            try {
-                const res = await fetch(`http://10.1.1.247:3000/motivos-parada/${encodeURIComponent(motivo)}`, {
-                    method: 'DELETE'
-                });
-                if (res.ok) {
-                    await this.carregarMotivos();
-                } else {
-                    const err = await res.json();
-                    alert(err.error || 'Erro ao remover motivo');
+        async inativarMotivo(codigo) {
+            if (confirm('Tem certeza que deseja inativar este motivo?')) {
+                try {
+                    const res = await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}/inativar`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (res.ok) {
+                        await this.carregarMotivos();
+                    } else {
+                        const err = await res.json();
+                        alert(err.error || 'Erro ao inativar motivo');
+                    }
+                } catch {
+                    alert('Erro ao inativar motivo');
                 }
-            } catch {
-                alert('Erro ao remover motivo');
+            }
+        },
+        async ativarMotivo(codigo) {
+            try {
+                await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}/ativar`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                this.carregarMotivos();
+            } catch (e) {
+                alert('Erro ao ativar motivo!');
             }
         },
         abrirInputAdicionarMotivo() {
@@ -336,6 +402,27 @@ export default {
         cancelarAdicionarMotivo() {
             this.mostrarInputAdicionarMotivo = false;
             this.novoMotivo = '';
+        },
+        editarMotivo(motivo) {
+            this.editandoMotivo = motivo.codigo;
+            this.editNomeMotivo = motivo.motivo;
+        },
+        cancelarEdicaoMotivo() {
+            this.editandoMotivo = null;
+            this.editNomeMotivo = '';
+        },
+        async salvarEdicaoMotivo(codigo) {
+            try {
+                await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ motivo: this.editNomeMotivo })
+                });
+                this.carregarMotivos();
+                this.cancelarEdicaoMotivo();
+            } catch (e) {
+                alert('Erro ao salvar edição!');
+            }
         },
         toggleDropdownSetor() {
             this.dropdownSetor = !this.dropdownSetor;
