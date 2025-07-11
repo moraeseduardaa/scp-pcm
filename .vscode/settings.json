@@ -1,0 +1,14 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "server": "10.1.1.247",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "pcm",
+            "database": "pcm",
+            "username": "pcm",
+            "password": "syspcm"
+        }
+    ]
+}
