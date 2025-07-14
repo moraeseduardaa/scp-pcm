@@ -210,7 +210,8 @@ export default {
         const res = await fetch('http://10.1.1.247:3000/motivos-parada');
         const data = await res.json();
         this.motivosParada = Array.isArray(data)
-            ? data.sort((a, b) => a.localeCompare(b, 'pt-BR'))
+            ? data.map(item => typeof item === 'string' ? item : item.motivo)
+                  .sort((a, b) => a.localeCompare(b, 'pt-BR'))
             : [];
       } catch (e) {
         this.motivosParada = [];

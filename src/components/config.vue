@@ -113,12 +113,12 @@
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="form-check form-switch">
                     <input class="form-check-input bg-dark border-secondary" type="checkbox" id="mostrarInativosMotivos"
-                        v-model="mostrarInativosMotivos" @change="carregarMotivos">
+                        v-model="mostrarInativosMotivos" @change="buscarMotivos">
                 </div>
                 <button class="btn btn-primary btn-sm" @click="abrirInputAdicionarMotivo"
                     v-if="!mostrarInputAdicionarMotivo">Adicionar Motivo</button>
             </div>
-
+            
             <div v-if="mostrarInputAdicionarMotivo" class="mb-3">
                 <div class="row g-2 align-items-center">
                     <div class="col">
@@ -132,7 +132,7 @@
                 </div>
             </div>
             
-            <div v-if="motivosDetalhes.length > 0">
+            <div v-if="motivosDB.length > 0">
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mt-4">
                         <thead>
@@ -143,12 +143,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="motivo in motivosDetalhes" :key="motivo.codigo">
-                                <td v-if="editandoMotivo === motivo.codigo">
-                                    <input v-model="editNomeMotivo" class="form-control"
-                                        @input="editNomeMotivo = $event.target.value.toUpperCase()" />
-                                </td>
-                                <td v-else>{{ motivo.motivo }}</td>
+                            <tr v-for="motivo in motivosDB" :key="motivo.codigo">
+                                <td>{{ motivo.motivo }}</td>
                                 <td v-if="mostrarInativosMotivos" class="align-middle text-uppercase fw-bold">
                                     {{ motivo.status }}
                                 </td>
@@ -159,17 +155,8 @@
                                                 @click="ativarMotivo(motivo.codigo)">Ativar</button>
                                         </template>
                                         <template v-else>
-                                            <button v-if="editandoMotivo === motivo.codigo" class="btn btn-success btn-sm"
-                                                @click="salvarEdicaoMotivo(motivo.codigo)">Salvar</button>
-                                            <button v-if="editandoMotivo === motivo.codigo"
-                                                class="btn btn-secondary btn-sm"
-                                                @click="cancelarEdicaoMotivo">Cancelar</button>
-                                            <template v-else>
-                                                <button class="btn btn-secondary btn-sm"
-                                                    @click="editarMotivo(motivo)">Editar</button>
-                                                <button class="btn btn-danger btn-sm"
-                                                    @click="inativarMotivo(motivo.codigo)">Inativar</button>
-                                            </template>
+                                            <button class="btn btn-danger btn-sm"
+                                                @click="inativarMotivo(motivo.codigo)">Inativar</button>
                                         </template>
                                     </div>
                                 </td>
@@ -182,6 +169,7 @@
                 <p>{{ mostrarInativosMotivos ? 'Nenhum motivo inativo.' : 'Nenhum motivo cadastrado.' }}</p>
             </div>
         </div>
+
     </div>
 </template>
 
@@ -199,6 +187,7 @@ export default {
             editSetor: '',
             novoMotivo: "",
             motivos: [],
+            motivosDB: [],
             motivosDetalhes: [],
             editandoMotivo: null,
             editNomeMotivo: '',
@@ -240,28 +229,6 @@ export default {
                 this.operadoresDB = Array.isArray(data) ? data : [];
             } catch (e) {
                 console.error('Erro ao buscar operadores:', e);
-            }
-        },
-        async carregarMotivos() {
-            try {
-                let url = 'http://10.1.1.247:3000/motivos-parada';
-                if (this.mostrarInativosMotivos) {
-                    url += '?status=INATIVO';
-                }
-                const res = await fetch(url, {
-                    headers: {
-                        'X-Detalhes': 'true'
-                    }
-                });
-                let data = await res.json();
-
-                this.motivosDetalhes = Array.isArray(data) ? data : [];
-
-                this.motivos = this.motivosDetalhes.map(m => m.motivo || m);
-            } catch (e) {
-                console.error('Erro ao carregar motivos:', e);
-                this.motivosDetalhes = [];
-                this.motivos = [];
             }
         },
         abrirInputAdicionar() {
@@ -342,54 +309,35 @@ export default {
                 alert('Erro ao adicionar operador!');
             }
         },
-        async adicionarMotivo() {
-            if (this.novoMotivo.trim()) {
-                try {
-                    const res = await fetch('http://10.1.1.247:3000/motivos-parada', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ motivo: this.novoMotivo.trim() })
-                    });
-                    if (res.ok) {
-                        this.novoMotivo = '';
-                        this.mostrarInputAdicionarMotivo = false;
-                        await this.carregarMotivos();
-                    } else {
-                        const err = await res.json();
-                        alert(err.error || 'Erro ao adicionar motivo');
-                    }
-                } catch {
-                    alert('Erro ao adicionar motivo');
-                }
-            }
+
+        toggleDropdownSetor() {
+            this.dropdownSetor = !this.dropdownSetor;
         },
-        async inativarMotivo(codigo) {
-            if (confirm('Tem certeza que deseja inativar este motivo?')) {
-                try {
-                    const res = await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}/inativar`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    if (res.ok) {
-                        await this.carregarMotivos();
-                    } else {
-                        const err = await res.json();
-                        alert(err.error || 'Erro ao inativar motivo');
-                    }
-                } catch {
-                    alert('Erro ao inativar motivo');
-                }
-            }
+        fecharDropdownSetor() {
+            this.dropdownSetor = false;
         },
-        async ativarMotivo(codigo) {
+
+        async buscarMotivos() {
             try {
-                await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}/ativar`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                this.carregarMotivos();
+                let url = 'http://10.1.1.247:3000/motivos-parada';
+                if (this.mostrarInativosMotivos) {
+                    url += '?status=INATIVO';
+                }
+                console.log('URL para motivos:', url);
+                console.log('mostrarInativosMotivos:', this.mostrarInativosMotivos);
+                const res = await fetch(url);
+                let data = await res.json();
+                if (data && data.Content) {
+                    try {
+                        data = JSON.parse(data.Content);
+                    } catch (e) {
+                        console.error('Erro ao parsear Content:', e);
+                    }
+                }
+                this.motivosDB = Array.isArray(data) ? data : [];
+                console.log('motivosDB final:', this.motivosDB);
             } catch (e) {
-                alert('Erro ao ativar motivo!');
+                console.error('Erro ao buscar motivos:', e);
             }
         },
         abrirInputAdicionarMotivo() {
@@ -402,33 +350,48 @@ export default {
         cancelarAdicionarMotivo() {
             this.mostrarInputAdicionarMotivo = false;
             this.novoMotivo = '';
-        },
-        editarMotivo(motivo) {
-            this.editandoMotivo = motivo.codigo;
-            this.editNomeMotivo = motivo.motivo;
-        },
-        cancelarEdicaoMotivo() {
-            this.editandoMotivo = null;
-            this.editNomeMotivo = '';
-        },
-        async salvarEdicaoMotivo(codigo) {
-            try {
-                await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ motivo: this.editNomeMotivo })
-                });
-                this.carregarMotivos();
-                this.cancelarEdicaoMotivo();
-            } catch (e) {
-                alert('Erro ao salvar edição!');
+        },       
+        async adicionarMotivo() {
+            if (!this.novoMotivo.trim()) {
+                alert('Preencha o motivo!');
+                return;
             }
-        },
-        toggleDropdownSetor() {
-            this.dropdownSetor = !this.dropdownSetor;
-        },
-        fecharDropdownSetor() {
-            this.dropdownSetor = false;
+            try {
+                await fetch('http://10.1.1.247:3000/motivos-parada', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ motivo: this.novoMotivo.trim() })
+                });
+                this.novoMotivo = '';
+                this.mostrarInputAdicionarMotivo = false;
+                this.buscarMotivos();
+            } catch (e) {
+                alert('Erro ao adicionar motivo!');
+            }
+        }, 
+        async inativarMotivo(codigo) {
+            if (confirm('Tem certeza que deseja inativar este motivo?')) {
+                try {
+                    await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}/inativar`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    this.buscarMotivos();
+                } catch (e) {
+                    alert('Erro ao inativar motivo!');
+                }
+            }
+        },       
+        async ativarMotivo(codigo) {
+            try {
+                await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}/ativar`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                this.buscarMotivos();
+            } catch (e) {
+                alert('Erro ao ativar motivo!');
+            }
         }
     },
     watch: {
@@ -440,7 +403,7 @@ export default {
     },
     mounted() {
         this.buscarOperadores();
-        this.carregarMotivos();
+        this.buscarMotivos();
     }
 };
 </script>

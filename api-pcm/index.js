@@ -126,35 +126,18 @@ app.get('/parada/aberta/:equipamento', async (req, res) => {
   }
 });
 
-app.get('/motivos-parada/detalhes', async (req, res) => {
-  try {
-    let status = req.query.status || 'ATIVO';
-    status = status.toUpperCase();
-    const result = await pool.query(
-      "SELECT codigo, motivo, status FROM motivos_parada WHERE status = $1 ORDER BY motivo",
-      [status]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Erro ao buscar detalhes dos motivos:', err);
-    res.status(500).json({ error: 'Erro ao buscar detalhes dos motivos' });
-  }
-});
-
 app.get('/motivos-parada', async (req, res) => {
   try {
     let status = req.query.status || 'ATIVO';
     status = status.toUpperCase();
-    
     const result = await pool.query(
       "SELECT codigo, motivo, status FROM motivos_parada WHERE status = $1 ORDER BY motivo",
       [status]
     );
-    
     res.json(result.rows);
   } catch (err) {
     console.error('Erro ao buscar motivos:', err);
-    res.status(500).json({ error: 'Erro ao buscar motivos' });
+    res.status(500).send('Erro ao buscar motivos');
   }
 });
 
@@ -207,73 +190,21 @@ app.post('/parada/fim', async (req, res) => {
 
 app.post('/motivos-parada', async (req, res) => {
   const { motivo } = req.body;
-  if (!motivo || typeof motivo !== 'string') {
-    return res.status(400).json({ error: 'Motivo inválido' });
+  if (!motivo) {
+    return res.status(400).json({ error: 'Motivo é obrigatório' });
   }
-  
   try {
-    // Verificar se já existe um motivo ativo com o mesmo nome
-    const existente = await pool.query(
-      "SELECT codigo FROM motivos_parada WHERE UPPER(motivo) = UPPER($1) AND status = 'ATIVO'",
-      [motivo.trim()]
-    );
-    
-    if (existente.rows.length > 0) {
-      return res.status(409).json({ error: 'Motivo já existe' });
-    }
-    
-    // Inserir novo motivo
     await pool.query(
       "INSERT INTO motivos_parada (motivo, status) VALUES ($1, 'ATIVO')",
-      [motivo.trim()]
+      [motivo]
     );
-    
-    // Retornar lista atualizada
-    const result = await pool.query(
-      "SELECT motivo FROM motivos_parada WHERE status = 'ATIVO' ORDER BY motivo"
-    );
-    
-    res.status(201).json(result.rows.map(row => row.motivo));
+    res.sendStatus(201);
   } catch (err) {
     console.error('Erro ao adicionar motivo:', err);
-    res.status(500).json({ error: 'Erro ao adicionar motivo' });
+    res.status(500).send('Erro ao adicionar motivo');
   }
 });
 
-// Endpoint para editar motivo
-app.put('/motivos-parada/:codigo', async (req, res) => {
-  const { codigo } = req.params;
-  const { motivo } = req.body;
-  
-  if (!motivo || typeof motivo !== 'string') {
-    return res.status(400).json({ error: 'Motivo inválido' });
-  }
-  
-  try {
-    // Verificar se já existe outro motivo ativo com o mesmo nome
-    const existente = await pool.query(
-      "SELECT codigo FROM motivos_parada WHERE UPPER(motivo) = UPPER($1) AND status = 'ATIVO' AND codigo != $2",
-      [motivo.trim(), codigo]
-    );
-    
-    if (existente.rows.length > 0) {
-      return res.status(409).json({ error: 'Motivo já existe' });
-    }
-    
-    // Atualizar motivo
-    await pool.query(
-      "UPDATE motivos_parada SET motivo = $1 WHERE codigo = $2",
-      [motivo.trim(), codigo]
-    );
-    
-    res.sendStatus(200);
-  } catch (err) {
-    console.error('Erro ao editar motivo:', err);
-    res.status(500).json({ error: 'Erro ao editar motivo' });
-  }
-});
-
-// Endpoint para inativar motivo
 app.put('/motivos-parada/:codigo/inativar', async (req, res) => {
   const { codigo } = req.params;
   try {
@@ -285,7 +216,6 @@ app.put('/motivos-parada/:codigo/inativar', async (req, res) => {
   }
 });
 
-// Endpoint para ativar motivo
 app.put('/motivos-parada/:codigo/ativar', async (req, res) => {
   const { codigo } = req.params;
   try {
