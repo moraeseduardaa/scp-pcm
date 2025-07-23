@@ -71,7 +71,19 @@ app.get('/operadores', async (req, res) => {
     let status = req.query.status || 'ATIVO';
     status = status.toUpperCase();
     const result = await pool.query(
-      "SELECT codigo, nome_operador, setor, status FROM operador WHERE status = $1 ORDER BY nome_operador",
+      `SELECT 
+        unidade.unidade AS unidade,
+        unidade.fabrica AS fabrica,
+        operador.setor,
+        celula.celula AS celula,
+        operador.nome_operador,
+        operador.codigo,
+        operador.status
+      FROM operador
+      LEFT JOIN unidade ON operador.cod_unidade = unidade.codigo
+      LEFT JOIN celula ON operador.cod_celula = celula.codigo
+      WHERE operador.status = $1
+      ORDER BY unidade.unidade, operador.setor, celula.celula, operador.nome_operador`,
       [status]
     );
     res.json(result.rows);
@@ -85,12 +97,14 @@ app.get('/paradas/abertas', async (req, res) => {
   try {
     const resultado = await pool.query(`
       SELECT 
+        unidade.unidade AS unidade,
         equipamento.codigo AS equipamento_id,
         equipamento.descricao AS equipamento_nome,
         tipo_equipamento.descricao AS tipo,
         celula.celula AS celula,
         paradas_equipamentos.motivo
       FROM equipamento
+      LEFT JOIN unidade ON equipamento.unidade = unidade.codigo
       JOIN celula ON equipamento.cod_celula = celula.codigo
       JOIN paradas_equipamentos ON equipamento.codigo = paradas_equipamentos.equipamento
       JOIN tipo_equipamento ON equipamento.tipo = tipo_equipamento.codigo
@@ -131,7 +145,7 @@ app.get('/motivos-parada', async (req, res) => {
     let status = req.query.status || 'ATIVO';
     status = status.toUpperCase();
     const result = await pool.query(
-      "SELECT codigo, motivo, status FROM motivos_parada WHERE status = $1 ORDER BY motivo",
+      "SELECT codigo, motivo, status, programada as parada FROM motivos_parada WHERE status = $1 ORDER BY motivo",
       [status]
     );
     res.json(result.rows);
@@ -142,14 +156,29 @@ app.get('/motivos-parada', async (req, res) => {
 });
 
 app.post('/operadores', async (req, res) => {
-  const { nome_operador, setor } = req.body;
-  if (!nome_operador || !setor) {
-    return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
+  const { nome_operador, setor, unidade, celula } = req.body;
+  if (!nome_operador || !setor || !unidade || !celula) {
+    return res.status(400).json({ error: 'Nome, setor, unidade e célula são obrigatórios' });
   }
   try {
+    const unidadeResult = await pool.query('SELECT codigo FROM unidade WHERE unidade = $1', [unidade]);
+    if (unidadeResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Unidade não encontrada' });
+    }
+    const cod_unidade = unidadeResult.rows[0].codigo;
+    const tipoEquipamentoResult = await pool.query('SELECT codigo FROM tipo_equipamento WHERE descricao = $1', [setor]);
+    if (tipoEquipamentoResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Tipo de equipamento (setor) não encontrado' });
+    }
+    const tipo_equipamento = tipoEquipamentoResult.rows[0].codigo;
+    const celulaResult = await pool.query('SELECT codigo FROM celula WHERE celula = $1 AND tipo_equipamento = $2', [celula, tipo_equipamento]);
+    if (celulaResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Célula não encontrada para o tipo de equipamento informado' });
+    }
+    const cod_celula = celulaResult.rows[0].codigo;
     await pool.query(
-      "INSERT INTO operador (nome_operador, setor, status) VALUES ($1, $2, 'ATIVO')",
-      [nome_operador, setor]
+      "INSERT INTO operador (nome_operador, setor, cod_unidade, cod_celula, status) VALUES ($1, $2, $3, $4, 'ATIVO')",
+      [nome_operador, setor, cod_unidade, cod_celula]
     );
     res.sendStatus(201);
   } catch (err) {
@@ -189,19 +218,34 @@ app.post('/parada/fim', async (req, res) => {
 });
 
 app.post('/motivos-parada', async (req, res) => {
-  const { motivo } = req.body;
-  if (!motivo) {
-    return res.status(400).json({ error: 'Motivo é obrigatório' });
+  const { motivo, parada } = req.body;
+  if (!motivo || !parada) {
+    return res.status(400).json({ error: 'Motivo e tipo de parada são obrigatórios' });
   }
   try {
     await pool.query(
-      "INSERT INTO motivos_parada (motivo, status) VALUES ($1, 'ATIVO')",
-      [motivo]
+      "INSERT INTO motivos_parada (motivo, status, programada) VALUES ($1, 'ATIVO', $2)",
+      [motivo, parada]
     );
     res.sendStatus(201);
   } catch (err) {
     console.error('Erro ao adicionar motivo:', err);
     res.status(500).send('Erro ao adicionar motivo');
+  }
+});
+
+app.put('/motivos-parada/:codigo', async (req, res) => {
+  const { codigo } = req.params;
+  const { motivo, parada } = req.body;
+  if (!motivo || !parada) {
+    return res.status(400).json({ error: 'Motivo e tipo de parada são obrigatórios' });
+  }
+  try {
+    await pool.query("UPDATE motivos_parada SET motivo = $1, programada = $2 WHERE codigo = $3", [motivo, parada, codigo]);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Erro ao editar motivo:', err);
+    res.status(500).send('Erro ao editar motivo');
   }
 });
 
@@ -277,11 +321,26 @@ app.post('/horimetro', async (req, res) => {
 
 app.put('/operadores/:codigo', async (req, res) => {
   const { codigo } = req.params;
-  const { nome_operador, setor } = req.body;
+  const { nome_operador, setor, unidade, celula } = req.body;
   try {
+    const unidadeResult = await pool.query('SELECT codigo FROM unidade WHERE unidade = $1', [unidade]);
+    if (unidadeResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Unidade não encontrada' });
+    }
+    const cod_unidade = unidadeResult.rows[0].codigo;
+    const tipoEquipamentoResult = await pool.query('SELECT codigo FROM tipo_equipamento WHERE descricao = $1', [setor]);
+    if (tipoEquipamentoResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Tipo de equipamento (setor) não encontrado' });
+    }
+    const tipo_equipamento = tipoEquipamentoResult.rows[0].codigo;
+    const celulaResult = await pool.query('SELECT codigo FROM celula WHERE celula = $1 AND tipo_equipamento = $2', [celula, tipo_equipamento]);
+    if (celulaResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Célula não encontrada para o tipo de equipamento informado' });
+    }
+    const cod_celula = celulaResult.rows[0].codigo;
     await pool.query(
-      'UPDATE operador SET nome_operador = $1, setor = $2 WHERE codigo = $3',
-      [nome_operador, setor, codigo]
+      'UPDATE operador SET nome_operador = $1, setor = $2, cod_unidade = $3, cod_celula = $4 WHERE codigo = $5',
+      [nome_operador, setor, cod_unidade, cod_celula, codigo]
     );
     res.sendStatus(200);
   } catch (err) {

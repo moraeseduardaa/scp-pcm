@@ -12,14 +12,6 @@
         <option :value="2">CROCHE</option>
       </select>
 
-      <select name="operador" v-model="operadorSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
-        :disabled="formBloqueado" style="width: 49%; background-color: #343a40; color: #fff;">
-        <option selected disabled hidden value="">Selecionar Operador</option>
-        <option v-for="op in operadores" :key="op">{{ op }}</option>
-      </select>
-    </div>
-    
-    <div class="d-flex justify-content-between" style="gap: 2%;">
       <select name="celula" v-model="celulaSelecionada" class="form-control cor-text-select mt-4 d-inline-block"
         style="width: 49%; background-color: #343a40; color: #fff;" :disabled="formBloqueado || !tipoSelecionado">
         <option selected disabled hidden value="">Selecionar Célula</option>
@@ -27,8 +19,9 @@
           {{ celula }}
         </option>
       </select>
+    </div>
 
-
+    <div class="d-flex justify-content-between" style="gap: 2%;">
       <select name="maquina" v-model="maquinaSelecionada" @change="verificarParadaAberta"
         :disabled="formBloqueado || !tipoSelecionado || !celulaSelecionada"
         class="form-control cor-text-select mt-4 d-inline-block"
@@ -38,12 +31,14 @@
           {{ maquina.nome }}
         </option>
       </select>
+
+      <select name="motivo" v-model="motivoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
+        :disabled="formBloqueado" style="width: 49%; background-color: #343a40; color: #fff;">
+        <option selected disabled hidden value="">Selecionar Motivo da Parada</option>
+        <option v-for="motivo in motivosParada" :key="motivo">{{ motivo }}</option>
+      </select>
+
     </div>
-    <select name="motivo" v-model="motivoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
-      :disabled="formBloqueado" style="background-color: #343a40; color: #fff;">
-      <option selected disabled hidden value="">Selecionar Motivo da Parada</option>
-      <option v-for="motivo in motivosParada" :key="motivo">{{ motivo }}</option>
-    </select>
 
     <div class="mt-4 d-flex gap-4">
       <button class="btn btn-success" @click="enviarInicio" :disabled="botaoInicioDesabilitado">Iniciar Parada</button>
@@ -71,8 +66,8 @@ export default {
       paradaAbertaEncontrada: false,
       formBloqueado: false,
       motivosParada: [],
-      operadoresTodos: [], // todos os operadores com setor
-      operadores: [] // operadores filtrados para o select
+      operadoresTodos: [], 
+      operadores: []
     };
   },
   watch: {
@@ -134,6 +129,15 @@ export default {
           } else {
             this.celulas = data;
           }
+          const operadorLogado = localStorage.getItem('operadorLogado');
+          if (operadorLogado) {
+            try {
+              const dados = JSON.parse(operadorLogado);
+              if (dados.operador && dados.operador.celula && this.celulas.includes(dados.operador.celula)) {
+                this.celulaSelecionada = dados.operador.celula;
+              }
+            } catch (e) {}
+          }
         })
         .catch(err => {
           console.error('Erro ao buscar células:', err);
@@ -145,31 +149,23 @@ export default {
         this.maquinas = [];
         return;
       }
-      
-      console.log('=== DEBUG CARREGAR MAQUINAS ===');
-      console.log('tipoSelecionado:', this.tipoSelecionado);
-      console.log('celulaSelecionada:', this.celulaSelecionada);
-      
+
       const url = `http://10.1.1.247:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`;
-      console.log('URL da requisição:', url);
-      
+
       fetch(url)
         .then(res => {
-          console.log('Status da resposta:', res.status);
           if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
           }
           return res.json();
         })
         .then(data => {
-          console.log('Dados recebidos do backend:', data);
           this.maquinas = data
             .map(item => ({
               id: item.codigo,
               nome: item.descricao
             }))
             .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-          console.log('Maquinas processadas:', this.maquinas);
         })
         .catch(err => {
           console.error('Erro ao buscar máquinas:', err);
@@ -182,7 +178,7 @@ export default {
         if (data && data.Content) {
           try {
             data = JSON.parse(data.Content);
-          } catch (e) {}
+          } catch (e) { }
         }
         this.operadoresTodos = Array.isArray(data) ? data : [];
         this.filtrarOperadoresPorSetor();
@@ -210,9 +206,9 @@ export default {
         const res = await fetch('http://10.1.1.247:3000/motivos-parada');
         const data = await res.json();
         this.motivosParada = Array.isArray(data)
-            ? data.map(item => typeof item === 'string' ? item : item.motivo)
-                  .sort((a, b) => a.localeCompare(b, 'pt-BR'))
-            : [];
+          ? data.map(item => typeof item === 'string' ? item : item.motivo)
+            .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+          : [];
       } catch (e) {
         this.motivosParada = [];
       }
@@ -247,12 +243,30 @@ export default {
         .then(res => {
           if (res.ok) {
             alert('Início da parada registrado com sucesso!');
-            this.maquinaSelecionada = '',
-              this.motivoSelecionado = '',
-              this.operadorSelecionado = '',
-              this.tipoSelecionado = '',
-              this.celulaSelecionada = '',
-              this.atualizarDataHora();
+            this.maquinaSelecionada = '';
+            this.motivoSelecionado = '';
+            // Restaurar tipo, célula e operador do login
+            const operadorLogado = localStorage.getItem('operadorLogado');
+            if (operadorLogado) {
+              try {
+                const dados = JSON.parse(operadorLogado);
+                // Tipo
+                if (dados.tipoEquipamento) {
+                  if (dados.tipoEquipamento.toUpperCase() === 'JACQUARD') this.tipoSelecionado = 3;
+                  else if (dados.tipoEquipamento.toUpperCase() === 'AGULHA') this.tipoSelecionado = 1;
+                  else if (dados.tipoEquipamento.toUpperCase() === 'CROCHE') this.tipoSelecionado = 2;
+                }
+                // Célula
+                if (dados.operador && dados.operador.celula) {
+                  this.celulaSelecionada = dados.operador.celula;
+                }
+                // Operador
+                if (dados.operador && dados.operador.nome_operador) {
+                  this.operadorSelecionado = dados.operador.nome_operador;
+                }
+              } catch (e) {}
+            }
+            this.atualizarDataHora();
           } else {
             throw new Error('Erro ao registrar início da parada');
           }
@@ -337,6 +351,23 @@ export default {
   mounted() {
     this.carregarMotivosParada();
     this.carregarOperadores();
+    const operadorLogado = localStorage.getItem('operadorLogado');
+    if (operadorLogado) {
+      try {
+        const dados = JSON.parse(operadorLogado);
+        if (dados.tipoEquipamento) {
+          if (dados.tipoEquipamento.toUpperCase() === 'JACQUARD') this.tipoSelecionado = 3;
+          else if (dados.tipoEquipamento.toUpperCase() === 'AGULHA') this.tipoSelecionado = 1;
+          else if (dados.tipoEquipamento.toUpperCase() === 'CROCHE') this.tipoSelecionado = 2;
+        }
+        if (dados.operador && dados.operador.celula) {
+          this.celulaSelecionada = dados.operador.celula;
+        }
+        if (dados.operador && dados.operador.nome_operador) {
+          this.operadorSelecionado = dados.operador.nome_operador;
+        }
+      } catch (e) {}
+    }
   }
 }
 </script>

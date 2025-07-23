@@ -4,11 +4,10 @@
     <input
       type="datetime-local"
       name="datahora"
+      v-model="dataHora"
       class="form-control cor-text-select mt-4"
       id="horimetroDataHora"
       style="background-color: #343a40; color: #fff;"
-      :value="dataHora"
-      disabled
     />
 
     <div class="d-flex justify-content-between" style="gap: 2%;">

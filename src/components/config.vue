@@ -20,6 +20,7 @@
                 <div class="form-check form-switch">
                     <input class="form-check-input bg-dark border-secondary" type="checkbox" id="mostrarInativos"
                         v-model="mostrarInativos" @change="buscarOperadores">
+                        <span>{{ mostrarInativos ? 'Ocultar Inativos' : 'Mostrar Inativos' }}</span>
                 </div>
                 <button class="btn btn-primary btn-sm" @click="abrirInputAdicionar" v-if="!mostrarInputAdicionar">
                     Adicionar Operador
@@ -28,16 +29,32 @@
             <div v-if="mostrarInputAdicionar" class="mb-3">
                 <div class="row g-2 align-items-center">
                     <div class="col">
-                        <input v-model="novoOperadorNome" class="form-control" placeholder="Nome do operador"
+                        <input v-model="novoOperadorNome" class="form-control" placeholder="Nome operador"
                             @input="novoOperadorNome = $event.target.value.toUpperCase()" />
                     </div>
-                    <div class="col">
-                        <input v-model="novoOperadorSetor" class="form-control" placeholder="Setor"
-                            @input="novoOperadorSetor = $event.target.value.toUpperCase()" />
-                    </div>
+            <div class="col">
+                <select v-model="novoOperadorUnidade" class="form-control">
+                    <option value="" disabled>Unidade</option>
+                    <option v-for="unidade in unidadesUnicas" :key="unidade" :value="unidade">{{ unidade }}</option>
+                </select>
+            </div>
+            <div class="col">
+                <select v-model="novoOperadorSetor" class="form-control">
+                    <option value="" disabled>Setor</option>
+                    <option v-for="setor in setoresUnicosAdd" :key="setor" :value="setor">{{ setor }}</option>
+                </select>
+            </div>
+            <div class="col">
+                <select v-model="novoOperadorCelula" class="form-control">
+                    <option value="" disabled>Célula</option>
+                    <option v-for="celula in celulasUnicasAdd" :key="celula" :value="celula">{{ celula }}</option>
+                </select>
+            </div>
+                                        
                     <div class="col-auto d-flex gap-2">
-                        <button class="btn btn-success" @click="adicionarOperador">Salvar</button>
-                        <button class="btn btn-secondary" @click="cancelarAdicionarOperador">Cancelar</button>
+                        <button class="btn btn-success btn-xs-width" @click="adicionarOperador">Salvar</button>
+                        <button class="btn btn-secondary btn-xs-width"
+                            @click="cancelarAdicionarOperador">Cancelar</button>
                     </div>
                 </div>
             </div>
@@ -47,6 +64,19 @@
                         <thead>
                             <tr>
                                 <th>Nome do Operador</th>
+                                <th class="position-relative">
+                                    <span class="coluna-com-icone" @click.stop="toggleDropdownUnidade">
+                                        Unidade <i class="bi bi-arrow-down-short"></i>
+                                    </span>
+                                    <div v-if="dropdownUnidade" class="dropdown-menu-custom">
+                                        <div class="dropdown-item" @click="filtroUnidade = ''; fecharDropdownUnidade()">
+                                            Todas as Unidades
+                                        </div>
+                                        <div class="dropdown-item" v-for="unidade in unidadesUnicas" :key="unidade"
+                                            @click="filtroUnidade = unidade; fecharDropdownUnidade()">{{ unidade }}
+                                        </div>
+                                    </div>
+                                </th>
                                 <th class="position-relative">
                                     <span class="coluna-com-icone" @click.stop="toggleDropdownSetor">
                                         Setor <i class="bi bi-arrow-down-short"></i>
@@ -58,6 +88,9 @@
                                         <div class="dropdown-item" v-for="setor in setoresUnicos" :key="setor"
                                             @click="filtroSetor = setor; fecharDropdownSetor()">{{ setor }}</div>
                                     </div>
+                                </th>
+                                <th>
+                                    Célula
                                 </th>
                                 <th v-if="mostrarInativos">Status</th>
                                 <th class="text-center">Ações</th>
@@ -71,29 +104,52 @@
                                 </td>
                                 <td v-else>{{ op.nome_operador }}</td>
                                 <td v-if="editandoOperador === op.codigo">
-                                    <input v-model="editSetor" class="form-control"
-                                        @input="editSetor = $event.target.value.toUpperCase()" />
+                                    <select v-model="editUnidade" class="form-control">
+                                        <option v-if="editUnidade && !unidadesUnicas.includes(editUnidade)"
+                                            :value="editUnidade">{{ editUnidade }}</option>
+                                        <option v-for="unidade in unidadesUnicas" :key="unidade" :value="unidade">{{
+                                            unidade }}</option>
+                                    </select>
+                                </td>
+                                <td v-else>{{ op.unidade }}</td>
+                                <td v-if="editandoOperador === op.codigo">
+                                    <select v-model="editSetor" class="form-control">
+                                        <option v-if="editSetor && !setoresUnicos.includes(editSetor)"
+                                            :value="editSetor">{{ editSetor }}</option>
+                                        <option v-for="setor in setoresUnicos" :key="setor" :value="setor">{{ setor }}
+                                        </option>
+                                    </select>
                                 </td>
                                 <td v-else>{{ op.setor }}</td>
+                                <td v-if="editandoOperador === op.codigo">
+                                    <select v-model="editCelula" class="form-control">
+                                        <option v-if="editCelula && !celulasUnicas.includes(editCelula)"
+                                            :value="editCelula">{{ editCelula }}</option>
+                                        <option v-for="celula in celulasUnicas" :key="celula" :value="celula">{{ celula
+                                            }}</option>
+                                    </select>
+                                </td>
+                                <td v-else>{{ op.celula }}</td>
                                 <td v-if="mostrarInativos" class="align-middle text-uppercase fw-bold">
                                     {{ op.status }}
                                 </td>
                                 <td class="text-center align-middle">
                                     <div class="d-flex justify-content-center gap-2">
                                         <template v-if="mostrarInativos">
-                                            <button class="btn btn-success btn-sm"
+                                            <button class="btn btn-success btn-sm btn-xs-width"
                                                 @click="ativarOperador(op.codigo)">Ativar</button>
                                         </template>
                                         <template v-else>
-                                            <button v-if="editandoOperador === op.codigo" class="btn btn-success btn-sm"
+                                            <button v-if="editandoOperador === op.codigo"
+                                                class="btn btn-success btn-sm btn-xs-width"
                                                 @click="salvarEdicaoOperador(op.codigo)">Salvar</button>
                                             <button v-if="editandoOperador === op.codigo"
-                                                class="btn btn-secondary btn-sm"
+                                                class="btn btn-secondary btn-sm btn-xs-width"
                                                 @click="cancelarEdicaoOperador">Cancelar</button>
                                             <template v-else>
-                                                <button class="btn btn-secondary btn-sm"
+                                                <button class="btn btn-secondary btn-sm btn-xs-width"
                                                     @click="editarOperador(op)">Editar</button>
-                                                <button class="btn btn-danger btn-sm"
+                                                <button class="btn btn-danger btn-sm btn-xs-width"
                                                     @click="inativarOperador(op.codigo)">Inativar</button>
                                             </template>
                                         </template>
@@ -114,16 +170,24 @@
                 <div class="form-check form-switch">
                     <input class="form-check-input bg-dark border-secondary" type="checkbox" id="mostrarInativosMotivos"
                         v-model="mostrarInativosMotivos" @change="buscarMotivos">
+                        <span>{{ mostrarInativosMotivos ? 'Ocultar Inativos' : 'Mostrar Inativos' }}</span>
                 </div>
                 <button class="btn btn-primary btn-sm" @click="abrirInputAdicionarMotivo"
                     v-if="!mostrarInputAdicionarMotivo">Adicionar Motivo</button>
             </div>
-            
+
             <div v-if="mostrarInputAdicionarMotivo" class="mb-3">
                 <div class="row g-2 align-items-center">
                     <div class="col">
                         <input v-model="novoMotivo" class="form-control" placeholder="Novo motivo de parada"
                             @input="novoMotivo = $event.target.value.toUpperCase()" />
+                    </div>
+                    <div class="col">
+                        <select v-model="novoParadaTipo" class="form-control">
+                            <option value="">Selecione</option>
+                            <option value="SIM">Programada</option>
+                            <option value="NAO">Não Programada</option>
+                        </select>
                     </div>
                     <div class="col-auto d-flex gap-2">
                         <button class="btn btn-success" @click="adicionarMotivo">Salvar</button>
@@ -131,32 +195,47 @@
                     </div>
                 </div>
             </div>
-            
+
             <div v-if="motivosDB.length > 0">
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mt-4">
                         <thead>
                             <tr>
                                 <th>Motivo de Parada</th>
+                                <th>Parada</th>
                                 <th v-if="mostrarInativosMotivos">Status</th>
                                 <th class="text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="motivo in motivosDB" :key="motivo.codigo">
-                                <td>{{ motivo.motivo }}</td>
+                                <td v-if="editandoMotivo === motivo.codigo">
+                                    <input v-model="editNomeMotivo" class="form-control" @input="editNomeMotivo = $event.target.value.toUpperCase()" />
+                                </td>
+                                <td v-else>{{ motivo.motivo }}</td>
+                                <td v-if="editandoMotivo === motivo.codigo">
+                                    <select v-model="editParadaTipo" class="form-control">
+                                        <option value="">Selecione</option>
+                                        <option value="SIM">Programada</option>
+                                        <option value="NAO">Não Programada</option>
+                                    </select>
+                                </td>
+                                <td v-else>{{ motivo.parada === 'SIM' ? 'Programada' : motivo.parada === 'NAO' ? 'Não Programada' : 'Não Informada' }}</td>
                                 <td v-if="mostrarInativosMotivos" class="align-middle text-uppercase fw-bold">
                                     {{ motivo.status }}
                                 </td>
                                 <td class="text-center align-middle">
                                     <div class="d-flex justify-content-center gap-2">
                                         <template v-if="mostrarInativosMotivos">
-                                            <button class="btn btn-success btn-sm"
-                                                @click="ativarMotivo(motivo.codigo)">Ativar</button>
+                                            <button class="btn btn-success" @click="ativarMotivo(motivo.codigo)">Ativar</button>
                                         </template>
                                         <template v-else>
-                                            <button class="btn btn-danger btn-sm"
-                                                @click="inativarMotivo(motivo.codigo)">Inativar</button>
+                                            <button v-if="editandoMotivo === motivo.codigo" class="btn btn-success btn-sm" @click="salvarEdicaoMotivo(motivo.codigo)">Salvar</button>
+                                            <button v-if="editandoMotivo === motivo.codigo" class="btn btn-secondary btn-sm" @click="cancelarEdicaoMotivo">Cancelar</button>
+                                            <template v-else>
+                                                <button class="btn btn-secondary btn-sm" @click="editarMotivo(motivo)">Editar</button>
+                                                <button class="btn btn-danger btn-sm" @click="inativarMotivo(motivo.codigo)">Inativar</button>
+                                            </template>
                                         </template>
                                     </div>
                                 </td>
@@ -171,6 +250,7 @@
         </div>
 
     </div>
+    
 </template>
 
 <script>
@@ -185,6 +265,10 @@ export default {
             editandoOperador: null,
             editNomeOperador: '',
             editSetor: '',
+            editUnidade: '',
+            editCelula: '',
+            filtroCelula: '',
+            dropdownCelula: false,
             novoMotivo: "",
             motivos: [],
             motivosDB: [],
@@ -194,20 +278,65 @@ export default {
             mostrarInputAdicionar: false,
             novoOperadorNome: '',
             novoOperadorSetor: '',
+            novoOperadorUnidade: '',
+            novoOperadorCelula: '',
             mostrarInativos: false,
             mostrarInativosMotivos: false,
             filtroSetor: '',
             dropdownSetor: false,
             mostrarInputAdicionarMotivo: false,
+            filtroUnidade: '',
+            dropdownUnidade: false,
+            editParadaTipo: '',
+            novoParadaTipo: '',
         };
     },
     computed: {
-        setoresUnicos() {
+        setoresUnicosAdd() {
+            if (this.novoOperadorUnidade) {
+                return [...new Set(this.operadoresDB.filter(op => op.unidade === this.novoOperadorUnidade).map(op => op.setor).filter(Boolean))].sort();
+            }
             return [...new Set(this.operadoresDB.map(op => op.setor).filter(Boolean))].sort();
         },
+        celulasUnicasAdd() {
+            if (this.novoOperadorUnidade && this.novoOperadorSetor) {
+                return [...new Set(this.operadoresDB.filter(op => op.unidade === this.novoOperadorUnidade && op.setor === this.novoOperadorSetor).map(op => op.celula).filter(Boolean))].sort();
+            }
+            return [...new Set(this.operadoresDB.map(op => op.celula).filter(Boolean))].sort();
+        },
+        unidadesUnicas() {
+            return [...new Set(this.operadoresDB.map(op => op.unidade).filter(Boolean))].sort();
+        },
+        setoresUnicos() {
+            if (this.editandoOperador && this.editUnidade) {
+                return [...new Set(this.operadoresDB.filter(op => op.unidade === this.editUnidade).map(op => op.setor).filter(Boolean))].sort();
+            }
+            return [...new Set(this.operadoresDB.map(op => op.setor).filter(Boolean))].sort();
+        },
+        celulasUnicas() {
+            if (this.editandoOperador && this.editUnidade && this.editSetor) {
+                return [...new Set(this.operadoresDB.filter(op => op.unidade === this.editUnidade && op.setor === this.editSetor).map(op => op.celula).filter(Boolean))].sort();
+            }
+            return [...new Set(this.operadoresDB.map(op => op.celula).filter(Boolean))].sort();
+        },
+        toggleDropdownCelula() {
+            this.dropdownCelula = !this.dropdownCelula;
+        },
+        fecharDropdownCelula() {
+            this.dropdownCelula = false;
+        },
         operadoresFiltrados() {
-            if (!this.filtroSetor) return this.operadoresDB;
-            return this.operadoresDB.filter(op => op.setor === this.filtroSetor);
+            let filtrados = this.operadoresDB;
+            if (this.filtroUnidade) {
+                filtrados = filtrados.filter(op => op.unidade === this.filtroUnidade);
+            }
+            if (this.filtroSetor) {
+                filtrados = filtrados.filter(op => op.setor === this.filtroSetor);
+            }
+            if (this.filtroCelula) {
+                filtrados = filtrados.filter(op => op.celula === this.filtroCelula);
+            }
+            return filtrados;
         }
     },
     methods: {
@@ -246,12 +375,16 @@ export default {
         editarOperador(op) {
             this.editandoOperador = op.codigo;
             this.editNomeOperador = op.nome_operador;
+            this.editUnidade = op.unidade;
             this.editSetor = op.setor;
+            this.editCelula = op.celula;
         },
         cancelarEdicaoOperador() {
             this.editandoOperador = null;
             this.editNomeOperador = '';
             this.editSetor = '';
+            this.editUnidade = '';
+            this.editCelula = '';
         },
         async ativarOperador(codigo) {
             try {
@@ -269,7 +402,12 @@ export default {
                 await fetch(`http://10.1.1.247:3000/operadores/${codigo}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome_operador: this.editNomeOperador, setor: this.editSetor })
+                    body: JSON.stringify({
+                        nome_operador: this.editNomeOperador,
+                        setor: this.editSetor,
+                        unidade: this.editUnidade,
+                        celula: this.editCelula
+                    })
                 });
                 this.buscarOperadores();
                 this.cancelarEdicaoOperador();
@@ -291,18 +429,25 @@ export default {
             }
         },
         async adicionarOperador() {
-            if (!this.novoOperadorNome.trim() || !this.novoOperadorSetor.trim()) {
-                alert('Preencha o nome e o setor!');
+            if (!this.novoOperadorNome.trim() || !this.novoOperadorUnidade || !this.novoOperadorSetor.trim() || !this.novoOperadorCelula) {
+                alert('Preencha o nome, unidade, setor e célula!');
                 return;
             }
             try {
                 await fetch('http://10.1.1.247:3000/operadores', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome_operador: this.novoOperadorNome.trim(), setor: this.novoOperadorSetor.trim() })
+                    body: JSON.stringify({
+                        nome_operador: this.novoOperadorNome.trim(),
+                        unidade: this.novoOperadorUnidade,
+                        setor: this.novoOperadorSetor.trim(),
+                        celula: this.novoOperadorCelula
+                    })
                 });
                 this.novoOperadorNome = '';
                 this.novoOperadorSetor = '';
+                this.novoOperadorUnidade = '';
+                this.novoOperadorCelula = '';
                 this.mostrarInputAdicionar = false;
                 this.buscarOperadores();
             } catch (e) {
@@ -315,6 +460,12 @@ export default {
         },
         fecharDropdownSetor() {
             this.dropdownSetor = false;
+        },
+        toggleDropdownUnidade() {
+            this.dropdownUnidade = !this.dropdownUnidade;
+        },
+        fecharDropdownUnidade() {
+            this.dropdownUnidade = false;
         },
 
         async buscarMotivos() {
@@ -350,25 +501,26 @@ export default {
         cancelarAdicionarMotivo() {
             this.mostrarInputAdicionarMotivo = false;
             this.novoMotivo = '';
-        },       
+        },
         async adicionarMotivo() {
-            if (!this.novoMotivo.trim()) {
-                alert('Preencha o motivo!');
+            if (!this.novoMotivo.trim() || !this.novoParadaTipo) {
+                alert('Preencha o motivo e selecione o tipo de parada!');
                 return;
             }
             try {
                 await fetch('http://10.1.1.247:3000/motivos-parada', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ motivo: this.novoMotivo.trim() })
+                    body: JSON.stringify({ motivo: this.novoMotivo.trim(), parada: this.novoParadaTipo })
                 });
                 this.novoMotivo = '';
+                this.novoParadaTipo = '';
                 this.mostrarInputAdicionarMotivo = false;
                 this.buscarMotivos();
             } catch (e) {
                 alert('Erro ao adicionar motivo!');
             }
-        }, 
+        },
         async inativarMotivo(codigo) {
             if (confirm('Tem certeza que deseja inativar este motivo?')) {
                 try {
@@ -381,7 +533,7 @@ export default {
                     alert('Erro ao inativar motivo!');
                 }
             }
-        },       
+        },
         async ativarMotivo(codigo) {
             try {
                 await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}/ativar`, {
@@ -392,7 +544,34 @@ export default {
             } catch (e) {
                 alert('Erro ao ativar motivo!');
             }
-        }
+        },
+        editarMotivo(motivo) {
+            this.editandoMotivo = motivo.codigo;
+            this.editNomeMotivo = motivo.motivo;
+            this.editParadaTipo = motivo.parada || '';
+        },
+        cancelarEdicaoMotivo() {
+            this.editandoMotivo = null;
+            this.editNomeMotivo = '';
+            this.editParadaTipo = '';
+        },
+        async salvarEdicaoMotivo(codigo) {
+            if (!this.editNomeMotivo.trim() || !this.editParadaTipo) {
+                alert('Preencha o motivo e selecione o tipo de parada!');
+                return;
+            }
+            try {
+                await fetch(`http://10.1.1.247:3000/motivos-parada/${codigo}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ motivo: this.editNomeMotivo.trim(), parada: this.editParadaTipo })
+                });
+                this.buscarMotivos();
+                this.cancelarEdicaoMotivo();
+            } catch (e) {
+                alert('Erro ao salvar edição!');
+            }
+        },
     },
     watch: {
         atualizar() {
@@ -404,7 +583,7 @@ export default {
     mounted() {
         this.buscarOperadores();
         this.buscarMotivos();
-    }
+    },
 };
 </script>
 
@@ -424,6 +603,11 @@ body {
 }
 
 input.form-control {
+    background-color: #343a40 !important;
+    color: #fff !important;
+    border: 1px solid #7c838a;
+}
+select.form-control {
     background-color: #343a40 !important;
     color: #fff !important;
     border: 1px solid #7c838a;
@@ -458,5 +642,10 @@ input.form-control::placeholder {
 .coluna-com-icone {
     cursor: pointer;
     user-select: none;
+}
+
+.btn-xs-width {
+    min-width: 56px;
+    font-size: 0.9rem;
 }
 </style>
