@@ -30,6 +30,29 @@ app.get('/celulas', async (req, res) => {
   }
 });
 
+app.get('/setores-por-unidade', async (req, res) => {
+  const { unidade } = req.query;
+  if (!unidade) {
+    return res.status(400).json({ error: 'Unidade é obrigatória' });
+  }
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT equipamento.tipo, tipo_equipamento.descricao AS tipo_descricao
+      FROM equipamento
+      JOIN unidade ON equipamento.unidade = unidade.codigo
+      JOIN tipo_equipamento ON equipamento.tipo = tipo_equipamento.codigo
+      WHERE unidade.unidade = $1
+        AND unidade.fabrica = 'SIM'
+        AND tipo_equipamento.codigo IN (1,2,3)
+      ORDER BY tipo_equipamento.descricao
+    `, [unidade]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao buscar setores por unidade:', err);
+    res.status(500).send('Erro ao buscar setores por unidade');
+  }
+});
+
 app.get('/equipamentos', async (req, res) => {
   const tipo = req.query['tipo'];
   const celula = req.query['celula'];
@@ -66,6 +89,16 @@ app.get('/equipamentos', async (req, res) => {
   }
 });
 
+app.get('/unidades-fabrica', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT unidade FROM unidade WHERE fabrica = 'SIM' ORDER BY unidade");
+    res.json(result.rows.map(row => row.unidade));
+  } catch (err) {
+    console.error('Erro ao buscar unidades fabris:', err);
+    res.status(500).send('Erro ao buscar unidades fabris');
+  }
+});
+
 app.get('/operadores', async (req, res) => {
   try {
     let status = req.query.status || 'ATIVO';
@@ -73,7 +106,6 @@ app.get('/operadores', async (req, res) => {
     const result = await pool.query(
       `SELECT 
         unidade.unidade AS unidade,
-        unidade.fabrica AS fabrica,
         operador.setor,
         celula.celula AS celula,
         operador.nome_operador,

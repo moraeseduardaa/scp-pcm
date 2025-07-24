@@ -28,4 +28,21 @@ WHERE codigo IN (41,47);
 
 alter table unidade add column fabrica VARCHAR(3);
 
+SELECT unidade.codigo, unidade.unidade, tipo_equipamento.codigo, tipo_equipamento.descricao, celula.celula, equipamento.codigo, equipamento.descricao
+FROM unidade, tipo_equipamento, celula, equipamento
+WHERE unidade.codigo = 3
+AND equipamento.unidade = unidade.codigo
+AND equipamento.tipo = tipo_equipamento.codigo
+AND equipamento.cod_celula = celula.codigo;
 
+select unidade.codigo, unidade.unidade, tipo_equipamento.codigo, tipo_equipamento.descricao
+from unidade, tipo_equipamento
+where unidade.fabrica = 'SIM'
+and tipo_equipamento.codigo in (1,2,3);
+ 
+select equipamento.unidade, unidade.unidade as unidade, equipamento.tipo, tipo_equipamento.descricao as tipo_descricao
+from equipamento, tipo_equipamento, unidade
+where equipamento.unidade = unidade.codigo
+and equipamento.tipo = tipo_equipamento.codigo
+and unidade.fabrica = 'SIM'
+and tipo_equipamento.codigo in (1,2,3);

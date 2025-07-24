@@ -35,7 +35,7 @@
             <div class="col">
                 <select v-model="novoOperadorUnidade" class="form-control">
                     <option value="" disabled>Unidade</option>
-                    <option v-for="unidade in unidadesUnicas" :key="unidade" :value="unidade">{{ unidade }}</option>
+                    <option v-for="unidade in unidadesFabris" :key="unidade" :value="unidade">{{ unidade }}</option>
                 </select>
             </div>
             <div class="col">
@@ -72,7 +72,7 @@
                                         <div class="dropdown-item" @click="filtroUnidade = ''; fecharDropdownUnidade()">
                                             Todas as Unidades
                                         </div>
-                                        <div class="dropdown-item" v-for="unidade in unidadesUnicas" :key="unidade"
+                                        <div class="dropdown-item" v-for="unidade in unidadesFabris" :key="unidade"
                                             @click="filtroUnidade = unidade; fecharDropdownUnidade()">{{ unidade }}
                                         </div>
                                     </div>
@@ -105,9 +105,9 @@
                                 <td v-else>{{ op.nome_operador }}</td>
                                 <td v-if="editandoOperador === op.codigo">
                                     <select v-model="editUnidade" class="form-control">
-                                        <option v-if="editUnidade && !unidadesUnicas.includes(editUnidade)"
+                                        <option v-if="editUnidade && !unidadesFabris.includes(editUnidade)"
                                             :value="editUnidade">{{ editUnidade }}</option>
-                                        <option v-for="unidade in unidadesUnicas" :key="unidade" :value="unidade">{{
+                                        <option v-for="unidade in unidadesFabris" :key="unidade" :value="unidade">{{
                                             unidade }}</option>
                                     </select>
                                 </td>
@@ -289,14 +289,14 @@ export default {
             dropdownUnidade: false,
             editParadaTipo: '',
             novoParadaTipo: '',
+            unidadesFabrisList: [],
+            setoresDisponiveisAdd: [],
+            setoresDisponiveisEdit: [],
         };
     },
     computed: {
         setoresUnicosAdd() {
-            if (this.novoOperadorUnidade) {
-                return [...new Set(this.operadoresDB.filter(op => op.unidade === this.novoOperadorUnidade).map(op => op.setor).filter(Boolean))].sort();
-            }
-            return [...new Set(this.operadoresDB.map(op => op.setor).filter(Boolean))].sort();
+            return this.setoresDisponiveisAdd.map(s => s.tipo_descricao);
         },
         celulasUnicasAdd() {
             if (this.novoOperadorUnidade && this.novoOperadorSetor) {
@@ -304,14 +304,8 @@ export default {
             }
             return [...new Set(this.operadoresDB.map(op => op.celula).filter(Boolean))].sort();
         },
-        unidadesUnicas() {
-            return [...new Set(this.operadoresDB.map(op => op.unidade).filter(Boolean))].sort();
-        },
         setoresUnicos() {
-            if (this.editandoOperador && this.editUnidade) {
-                return [...new Set(this.operadoresDB.filter(op => op.unidade === this.editUnidade).map(op => op.setor).filter(Boolean))].sort();
-            }
-            return [...new Set(this.operadoresDB.map(op => op.setor).filter(Boolean))].sort();
+            return this.setoresDisponiveisEdit.map(s => s.tipo_descricao);
         },
         celulasUnicas() {
             if (this.editandoOperador && this.editUnidade && this.editSetor) {
@@ -324,6 +318,9 @@ export default {
         },
         fecharDropdownCelula() {
             this.dropdownCelula = false;
+        },
+        unidadesFabris() {
+            return this.unidadesFabrisList;
         },
         operadoresFiltrados() {
             let filtrados = this.operadoresDB;
@@ -454,7 +451,16 @@ export default {
                 alert('Erro ao adicionar operador!');
             }
         },
-
+        async buscarUnidadesFabris() {
+            try {
+                const res = await fetch('http://10.1.1.247:3000/unidades-fabrica');
+                const data = await res.json();
+                this.unidadesFabrisList = Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.error('Erro ao buscar unidades fabris:', e);
+                this.unidadesFabrisList = [];
+            }
+        },
         toggleDropdownSetor() {
             this.dropdownSetor = !this.dropdownSetor;
         },
@@ -466,6 +472,32 @@ export default {
         },
         fecharDropdownUnidade() {
             this.dropdownUnidade = false;
+        },
+        async buscarSetoresPorUnidadeAdd() {
+            if (!this.novoOperadorUnidade) {
+                this.setoresDisponiveisAdd = [];
+                return;
+            }
+            try {
+                const res = await fetch(`http://10.1.1.247:3000/setores-por-unidade?unidade=${encodeURIComponent(this.novoOperadorUnidade)}`);
+                const data = await res.json();
+                this.setoresDisponiveisAdd = Array.isArray(data) ? data : [];
+            } catch (e) {
+                this.setoresDisponiveisAdd = [];
+            }
+        },
+        async buscarSetoresPorUnidadeEdit() {
+            if (!this.editUnidade) {
+                this.setoresDisponiveisEdit = [];
+                return;
+            }
+            try {
+                const res = await fetch(`http://10.1.1.247:3000/setores-por-unidade?unidade=${encodeURIComponent(this.editUnidade)}`);
+                const data = await res.json();
+                this.setoresDisponiveisEdit = Array.isArray(data) ? data : [];
+            } catch (e) {
+                this.setoresDisponiveisEdit = [];
+            }
         },
 
         async buscarMotivos() {
@@ -578,11 +610,20 @@ export default {
             setTimeout(() => {
                 this.buscarOperadores();
             }, 100);
-        }
+        },
+        novoOperadorUnidade(newVal) {
+            this.novoOperadorSetor = '';
+            this.buscarSetoresPorUnidadeAdd();
+        },
+        editUnidade(newVal) {
+            this.editSetor = '';
+            this.buscarSetoresPorUnidadeEdit();
+        },
     },
-    mounted() {
+    async mounted() {
         this.buscarOperadores();
         this.buscarMotivos();
+        await this.buscarUnidadesFabris();
     },
 };
 </script>
@@ -591,17 +632,14 @@ export default {
 body {
     background-color: #212529;
 }
-
 .nav-tabs .nav-link {
     color: #fff !important;
     background-color: transparent !important;
 }
-
 .nav-tabs .nav-link.active {
     border-color: #6c757d #6c757d #343a40;
     font-weight: bold;
 }
-
 input.form-control {
     background-color: #343a40 !important;
     color: #fff !important;
@@ -612,12 +650,10 @@ select.form-control {
     color: #fff !important;
     border: 1px solid #7c838a;
 }
-
 input.form-control::placeholder {
     color: #ccc !important;
     opacity: 1;
 }
-
 .dropdown-menu-custom {
     position: absolute;
     z-index: 10;
@@ -628,22 +664,18 @@ input.form-control::placeholder {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     margin-top: 0.5rem;
 }
-
 .dropdown-item {
     padding: 0.5rem 1rem;
     cursor: pointer;
     color: #fff;
 }
-
 .dropdown-item:hover {
     background: #343a40;
 }
-
 .coluna-com-icone {
     cursor: pointer;
     user-select: none;
 }
-
 .btn-xs-width {
     min-width: 56px;
     font-size: 0.9rem;
