@@ -30,11 +30,12 @@
     </div>
 
     <div class="d-flex justify-content-between" style="gap: 2%;">
-    <select name="maquina" v-model="maquinaSelecionada" @change="verificarParadaAberta"
+    <select name="maquina" v-model="maquinaSelecionada" 
       :disabled="!tipoSelecionado || !celulaSelecionada"
       class="form-control cor-text-select mt-4 d-inline-block"
       style="width: 49%; background-color: #343a40; color: #fff;">
       <option disabled value="">Selecionar Equipamento</option>
+      <option value="TODOS">☑️ Todos os Equipamentos</option>
       <option v-for="maquina in maquinas" :key="maquina.id" :value="maquina.id">
         {{ maquina.nome }}
       </option>
@@ -43,8 +44,8 @@
     <select name="periodo" v-model="periodoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
       style="width: 49%; background-color: #343a40; color: #fff;">
       <option selected disabled hidden value="">Selecionar Período</option>
-      <option value="FIM DO 1° TURNO">FIM DO 1° TURNO</option>
-      <option value="FIM DO 2° TURNO">FIM DO 2° TURNO</option>
+      <option value="FIM DO 1° TURNO">1° TURNO</option>
+      <option value="FIM DO 2° TURNO">2° TURNO</option>
     </select>
     </div>
 
@@ -134,6 +135,15 @@ export default {
           } else {
             this.celulas = data;
           }
+          const operadorLogado = localStorage.getItem('operadorLogado');
+          if (operadorLogado) {
+            try {
+              const dados = JSON.parse(operadorLogado);
+              if (dados.operador && dados.operador.celula && this.celulas.includes(dados.operador.celula)) {
+                this.celulaSelecionada = dados.operador.celula;
+              }
+            } catch (e) {}
+          }
         })
         .catch(err => {
           console.error('Erro ao buscar células:', err);
@@ -159,57 +169,84 @@ export default {
           console.error('Erro ao buscar máquinas:', err);
         });
     },
+    enviarHorimetro() {
+      if (!this.maquinaSelecionada) {
+        alert('Selecione uma máquina');
+        return;
+      }
 
-  enviarHorimetro() {
-    if (!this.maquinaSelecionada) {
-      alert('Selecione uma máquina');
-      return;
-    }
-    
-    if (!this.periodoSelecionado) {
-      alert('Selecione um período');
-      return;
-    }
-    
-    if (!this.horimetroValue) {
-      alert('Preencha o horímetro');
-      return;
-    }
+      if (!this.periodoSelecionado) {
+        alert('Selecione um período');
+        return;
+      }
 
-    const payload = {
-      equipamento: this.maquinaSelecionada,
-      dataHora: this.dataHora,
-      horimetro: this.horimetroValue,
-      periodo: this.periodoSelecionado
-    };
+      if (!this.horimetroValue) {
+        alert('Preencha o horímetro');
+        return;
+      }
 
-    fetch('http://10.1.1.247:3000/horimetro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-      .then(res => {
-        if (res.ok) {
-          alert('Horímetro salvo com sucesso!');
-          this.maquinaSelecionada = '';
-          this.celulaSelecionada = '';
-          this.tipoSelecionado = '';
-          this.horimetroValue = '';
-          this.periodoSelecionado = '';
-          this.dataHora = this.getLocalDateTime();
-        } else {
-          return res.text().then(text => {
-            throw new Error(text || 'Erro ao salvar');
+      const equipamentos = this.maquinaSelecionada === "TODOS"
+        ? this.maquinas.map(m => m.id)
+        : [this.maquinaSelecionada];
+
+      let erros = [];
+
+      const promises = equipamentos.map(equipamento => {
+        const payload = {
+          equipamento,
+          dataHora: this.dataHora,
+          horimetro: this.horimetroValue,
+          periodo: this.periodoSelecionado
+        };
+
+        return fetch('http://10.1.1.247:3000/horimetro', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(res => {
+            if (!res.ok) {
+              return res.text().then(text => {
+                throw new Error(text || `Erro ao salvar para equipamento ${equipamento}`);
+              });
+            }
+          })
+          .catch(err => {
+            erros.push(err.message || `Erro no equipamento ${equipamento}`);
           });
+      });
+
+      Promise.all(promises).then(() => {
+        if (erros.length === 0) {
+          alert('Horímetro(s) salvo(s) com sucesso!');
+        } else {
+          alert(`Alguns erros ocorreram:\n${erros.join('\n')}`);
         }
-      })
-      .catch(err => {
-        console.error(err);
-        alert(err.message || 'Erro ao salvar horímetro');
+
+        this.maquinaSelecionada = '';
+        this.celulaSelecionada = '';
+        this.tipoSelecionado = '';
+        this.horimetroValue = '';
+        this.periodoSelecionado = '';
+        this.dataHora = this.getLocalDateTime();
       });
     }
   },
   mounted() {
+    const operadorLogado = localStorage.getItem('operadorLogado');
+    if (operadorLogado) {
+      try {
+        const dados = JSON.parse(operadorLogado);
+        if (dados.tipoEquipamento) {
+          if (dados.tipoEquipamento.toUpperCase() === 'JACQUARD') this.tipoSelecionado = 3;
+          else if (dados.tipoEquipamento.toUpperCase() === 'AGULHA') this.tipoSelecionado = 1;
+          else if (dados.tipoEquipamento.toUpperCase() === 'CROCHE') this.tipoSelecionado = 2;
+        }
+        if (dados.operador && dados.operador.nome_operador) {
+          this.operadorSelecionado = dados.operador.nome_operador;
+        }
+      } catch (e) {}
+    }
   }
 }
 </script>

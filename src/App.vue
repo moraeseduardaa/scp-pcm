@@ -12,7 +12,7 @@
           <div class="mx-auto mb-2" style="height: 4px; width: 80%; background: #dc3545;"></div>
 
           <div class="d-flex justify-content-center gap-3 mt-4">
-            <button class="btn btn-secondary btn-lg" @click="abrirModalHorimetro">Marcar Horímetro</button>
+            <button class="btn btn-secondary btn-lg" @click="abrirModalHorimetro">Registrar Horímetro</button>
             <button class="btn btn-danger btn-lg" @click="abrirModalParada">Consultar Paradas</button>
           </div>
         </div>
@@ -32,7 +32,7 @@
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="horimetroModalLabel">Registrar Horímetro</h5>
+          <h5 class="modal-title" id="horimetroModalLabel">Início e Termino de Operação</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
