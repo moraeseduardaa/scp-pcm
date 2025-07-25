@@ -10,6 +10,12 @@
                             <div class="mx-auto mb-4" style="height: 4px; width: 80%; background: #dc3545;"></div>
 
                             <div class="mb-4">
+                                <select v-model="unidadeSelecionada" class="form-select form-control-lg mb-2"
+                                    style="background-color: #f8f9fa; color: #000; border: 2px solid #dc3545;">
+                                    <option value="" disabled>Filtrar por unidade</option>
+                                    <option v-for="unidade in unidadesFabrisList" :key="unidade" :value="unidade">{{ unidade }}</option>
+                                </select> 
+
                                 <select v-model="operadorSelecionado" class="form-select form-control-lg"
                                     style="background-color: #f8f9fa; color: #000; border: 2px solid #dc3545;"
                                     @change="carregarTipoEquipamento">
@@ -64,6 +70,8 @@ export default {
     data() {
         return {
             operadores: [],
+            unidadeSelecionada: '',
+            unidadesFabrisList: [],
             operadorSelecionado: '',
             tipoEquipamento: '',
             configKey: 0
@@ -77,7 +85,11 @@ export default {
         },
         async carregarOperadores() {
             try {
-                const res = await fetch('http://10.1.1.247:3000/operadores');
+                let url = 'http://10.1.1.247:3000/operadores';
+                if (this.unidadeSelecionada) {
+                    url += '?unidade=' + encodeURIComponent(this.unidadeSelecionada);
+                }
+                const res = await fetch(url);
                 let data = await res.json();
                 if (data && data.Content) {
                     try {
@@ -93,13 +105,20 @@ export default {
                 console.error('Erro ao buscar operadores:', e);
             }
         },
-
         carregarTipoEquipamento() {
             if (this.operadorSelecionado && this.operadorSelecionado.setor) {
                 this.tipoEquipamento = this.operadorSelecionado.setor;
             }
         },
-
+        async carregarUnidadesFabris() {
+            try {
+                const res = await fetch('http://10.1.1.247:3000/unidades-fabrica');
+                const data = await res.json();
+                this.unidadesFabrisList = Array.isArray(data) ? data : [];
+            } catch (e) {
+                this.unidadesFabrisList = [];
+            }
+        },
         fazerLogin() {
             if (!this.operadorSelecionado) {
                 alert('Selecione um operador!');
@@ -119,8 +138,15 @@ export default {
     },
 
     mounted() {
+        this.carregarUnidadesFabris();
+        this.carregarOperadores();
+    },
+    watch: {
+    unidadeSelecionada() {
+        this.operadorSelecionado = '';
         this.carregarOperadores();
     }
+    },
 };
 </script>
 

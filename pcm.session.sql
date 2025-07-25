@@ -1,12 +1,18 @@
 UPDATE equipamento
-SET cod_celula = 9
-WHERE tipo = 2
-and unidade = 3;
+SET unidade = 4
+WHERE unidade = 3
+and tipo in (5,11)
 AND codigo IN (
-9235,
-422
+248,
+233,
+236,
+249,
+251,
+319,
+307,
+338,
+242
 );
-
 
 TRUNCATE TABLE horimetro RESTART IDENTITY;
 
@@ -21,28 +27,22 @@ FROM motivos_parada
 WHERE status = 'ATIVO'
 ORDER BY motivo;
 
-
-DELETE FROM operador
-WHERE codigo IN (41,47);
-
+DELETE FROM paradas_equipamentos
+WHERE codigo IN (2429);
 
 alter table unidade add column fabrica VARCHAR(3);
-
-SELECT unidade.codigo, unidade.unidade, tipo_equipamento.codigo, tipo_equipamento.descricao, celula.celula, equipamento.codigo, equipamento.descricao
-FROM unidade, tipo_equipamento, celula, equipamento
-WHERE unidade.codigo = 3
-AND equipamento.unidade = unidade.codigo
-AND equipamento.tipo = tipo_equipamento.codigo
-AND equipamento.cod_celula = celula.codigo;
-
-select unidade.codigo, unidade.unidade, tipo_equipamento.codigo, tipo_equipamento.descricao
-from unidade, tipo_equipamento
-where unidade.fabrica = 'SIM'
-and tipo_equipamento.codigo in (1,2,3);
  
 select equipamento.unidade, unidade.unidade as unidade, equipamento.tipo, tipo_equipamento.descricao as tipo_descricao
 from equipamento, tipo_equipamento, unidade
 where equipamento.unidade = unidade.codigo
 and equipamento.tipo = tipo_equipamento.codigo
 and unidade.fabrica = 'SIM'
-and tipo_equipamento.codigo in (1,2,3);
+and tipo_equipamento.codigo in (1,2,3,5,6,8,11);
+
+select equipamento.codigo, equipamento.descricao, equipamento.unidade, unidade.unidade as unidade, equipamento.tipo, tipo_equipamento.descricao as tipo_descricao
+from equipamento
+join unidade on equipamento.unidade = unidade.codigo
+join tipo_equipamento on equipamento.tipo = tipo_equipamento.codigo
+where unidade.codigo = 4
+and tipo_equipamento.codigo in (5,11);
+

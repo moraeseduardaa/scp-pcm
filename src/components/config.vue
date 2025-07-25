@@ -298,7 +298,7 @@ export default {
         setoresUnicosAdd() {
             return this.setoresDisponiveisAdd.map(s => s.tipo_descricao);
         },
-        celulasUnicasAdd() {
+        celulasUnicasAdd() { 
             if (this.novoOperadorUnidade && this.novoOperadorSetor) {
                 return [...new Set(this.operadoresDB.filter(op => op.unidade === this.novoOperadorUnidade && op.setor === this.novoOperadorSetor).map(op => op.celula).filter(Boolean))].sort();
             }

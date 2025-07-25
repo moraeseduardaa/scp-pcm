@@ -240,37 +240,34 @@ export default {
           operador: this.operadorSelecionado
         })
       })
-        .then(res => {
-          if (res.ok) {
-            alert('Início da parada registrado com sucesso!');
-            this.maquinaSelecionada = '';
-            this.motivoSelecionado = '';
-            // Restaurar tipo, célula e operador do login
-            const operadorLogado = localStorage.getItem('operadorLogado');
-            if (operadorLogado) {
-              try {
-                const dados = JSON.parse(operadorLogado);
-                // Tipo
-                if (dados.tipoEquipamento) {
-                  if (dados.tipoEquipamento.toUpperCase() === 'JACQUARD') this.tipoSelecionado = 3;
-                  else if (dados.tipoEquipamento.toUpperCase() === 'AGULHA') this.tipoSelecionado = 1;
-                  else if (dados.tipoEquipamento.toUpperCase() === 'CROCHE') this.tipoSelecionado = 2;
-                }
-                // Célula
-                if (dados.operador && dados.operador.celula) {
-                  this.celulaSelecionada = dados.operador.celula;
-                }
-                // Operador
-                if (dados.operador && dados.operador.nome_operador) {
-                  this.operadorSelecionado = dados.operador.nome_operador;
-                }
-              } catch (e) {}
-            }
-            this.atualizarDataHora();
-          } else {
-            throw new Error('Erro ao registrar início da parada');
-          }
-        })
+       .then(res => {
+         if (res.ok) {
+           alert('Início da parada registrado com sucesso!');
+           this.maquinaSelecionada = '';
+           this.motivoSelecionado = '';
+           const operadorLogado = localStorage.getItem('operadorLogado');
+           if (operadorLogado) {
+             try {
+               const dados = JSON.parse(operadorLogado);
+               if (dados.tipoEquipamento) {
+                 if (dados.tipoEquipamento.toUpperCase() === 'JACQUARD') this.tipoSelecionado = 3;
+                 else if (dados.tipoEquipamento.toUpperCase() === 'AGULHA') this.tipoSelecionado = 1;
+                 else if (dados.tipoEquipamento.toUpperCase() === 'CROCHE') this.tipoSelecionado = 2;
+               }
+               if (dados.operador && dados.operador.celula) {
+                 this.celulaSelecionada = dados.operador.celula;
+               }
+               if (dados.operador && dados.operador.nome_operador) {
+                 this.operadorSelecionado = dados.operador.nome_operador;
+               }
+             } catch (e) {}
+           }
+           this.atualizarDataHora();
+         } else {
+           alert('Erro ao registrar início da parada');
+           throw new Error('Erro ao registrar início da parada');
+         }
+       })
         .catch(err => {
           console.error(err);
           alert('Erro ao registrar início da parada');

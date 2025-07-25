@@ -43,7 +43,7 @@ app.get('/setores-por-unidade', async (req, res) => {
       JOIN tipo_equipamento ON equipamento.tipo = tipo_equipamento.codigo
       WHERE unidade.unidade = $1
         AND unidade.fabrica = 'SIM'
-        AND tipo_equipamento.codigo IN (1,2,3)
+        AND tipo_equipamento.codigo IN (1,2,3,5,6,8,11)
       ORDER BY tipo_equipamento.descricao
     `, [unidade]);
     res.json(result.rows);
@@ -103,8 +103,9 @@ app.get('/operadores', async (req, res) => {
   try {
     let status = req.query.status || 'ATIVO';
     status = status.toUpperCase();
-    const result = await pool.query(
-      `SELECT 
+    const unidade = req.query.unidade;
+    let query = `
+      SELECT 
         unidade.unidade AS unidade,
         operador.setor,
         celula.celula AS celula,
@@ -115,9 +116,14 @@ app.get('/operadores', async (req, res) => {
       LEFT JOIN unidade ON operador.cod_unidade = unidade.codigo
       LEFT JOIN celula ON operador.cod_celula = celula.codigo
       WHERE operador.status = $1
-      ORDER BY unidade.unidade, operador.setor, celula.celula, operador.nome_operador`,
-      [status]
-    );
+    `;
+    const params = [status];
+    if (unidade) {
+      query += ' AND unidade.unidade = $2';
+      params.push(unidade);
+    }
+    query += ' ORDER BY unidade.unidade, operador.setor, celula.celula, operador.nome_operador';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Erro ao buscar operadores:', err);
