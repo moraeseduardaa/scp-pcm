@@ -28,7 +28,7 @@ WHERE status = 'ATIVO'
 ORDER BY motivo;
 
 DELETE FROM paradas_equipamentos
-WHERE codigo IN (2429);
+WHERE codigo IN (2906,2907,2908,2909,2910,2911,2912,2913,2914,2915,2916,2917,2918,2919,2920);
 
 alter table unidade add column fabrica VARCHAR(3);
  

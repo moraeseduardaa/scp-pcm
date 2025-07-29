@@ -193,6 +193,28 @@ app.get('/motivos-parada', async (req, res) => {
   }
 });
 
+app.get('/operacao/aberta/:equipamento', async (req, res) => {
+  const equipamento = req.params.equipamento;
+  const data = req.query.data; 
+  if (!data) {
+    return res.status(400).json({ error: 'Data é obrigatória' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT * FROM operacao WHERE equipamento = $1 AND data = $2 AND (ini_1t IS NOT NULL OR ini_2t IS NOT NULL) AND (fim_1t IS NULL OR fim_2t IS NULL) LIMIT 1`,
+      [equipamento, data]
+    );
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]);
+    } else {
+      res.status(204).send();
+    }
+  } catch (err) {
+    console.error('Erro ao verificar operação aberta:', err);
+    res.status(500).send('Erro ao verificar operação aberta');
+  }
+});
+
 app.post('/operadores', async (req, res) => {
   const { nome_operador, setor, unidade, celula } = req.body;
   if (!nome_operador || !setor || !unidade || !celula) {
@@ -240,6 +262,58 @@ app.post('/parada/inicio', async (req, res) => {
   }
 });
 
+app.post('/horimetro', async (req, res) => {
+  const { equipamento, dataHora, horimetro, periodo } = req.body;
+  if (!equipamento || !dataHora || !horimetro || !periodo) {
+    return res.status(400).send('Todos os campos são obrigatórios');
+  }
+  const dataValida = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/.test(dataHora);
+  if (!dataValida) {
+    return res.status(400).send('DataHora em formato inválido');
+  }
+  if (typeof horimetro !== 'string' && typeof horimetro !== 'number') {
+    return res.status(400).send('Horímetro inválido');
+  }
+  try {
+    if (periodo === 'FIM DO 1° TURNO') {
+      const busca = await pool.query(
+        "SELECT * FROM horimetro WHERE equipamento = $1 AND data2 IS NULL",
+        [equipamento]
+      );
+      if (busca.rows.length > 0) {
+        return res.status(409).send('Finalize o 2º turno.');
+      }
+      await pool.query(
+        'INSERT INTO horimetro (equipamento, data1, horimetro1) VALUES ($1, $2, $3)',
+        [equipamento, dataHora, horimetro]
+      );
+      res.status(201).send('Horímetro do 1º turno salvo com sucesso');
+    } else if (periodo === 'FIM DO 2° TURNO') {
+      const busca = await pool.query(
+        "SELECT * FROM horimetro WHERE equipamento = $1 AND data2 IS NULL ORDER BY data1 DESC LIMIT 1",
+        [equipamento]
+      );
+      if (busca.rows.length === 0) {
+        await pool.query(
+          'INSERT INTO horimetro (equipamento, data2, horimetro2) VALUES ($1, $2, $3)',
+          [equipamento, dataHora, horimetro]
+        );
+        return res.status(201).send('Horímetro do 2º turno salvo (sem 1º turno)');
+      }
+      await pool.query(
+        'UPDATE horimetro SET data2 = $1, horimetro2 = $2 WHERE equipamento = $3 AND data2 IS NULL AND data1 = $4',
+        [dataHora, horimetro, equipamento, busca.rows[0].data1]
+      );
+      res.status(200).send('Horímetro do 2º turno salvo com sucesso');
+    } else {
+      res.status(400).send('Período inválido');
+    }
+  } catch (err) {
+    console.error('Erro ao salvar horímetro:', err);
+    res.status(500).send('Erro ao salvar horímetro: ' + (err.detail || err.message));
+  }
+});
+
 app.post('/parada/fim', async (req, res) => {
   const { equipamento, datahora_fim_parada, operador } = req.body;
   try {
@@ -269,6 +343,57 @@ app.post('/motivos-parada', async (req, res) => {
   } catch (err) {
     console.error('Erro ao adicionar motivo:', err);
     res.status(500).send('Erro ao adicionar motivo');
+  }
+});
+
+app.post('/operacao/inicio', async (req, res) => {
+  const { equipamento, data, turno, operador, hora } = req.body;
+  if (!equipamento || !data || !turno || !operador || !hora) {
+    return res.status(400).json({ error: 'Campos obrigatórios: equipamento, data, turno, operador, hora' });
+  }
+  let colunaIni = turno === '1T' ? 'ini_1t' : 'ini_2t';
+  try {
+    const busca = await pool.query('SELECT * FROM operacao WHERE equipamento = $1 AND data = $2', [equipamento, data]);
+    if (busca.rows.length === 0) {
+      const campos = turno === '1T' ? '(equipamento, data, ini_1t, operador_1t)' : '(equipamento, data, ini_2t, operador_2t)';
+      const valores = turno === '1T' ? '($1, $2, $3, $4)' : '($1, $2, $3, $4)';
+      await pool.query(
+        `INSERT INTO operacao ${campos} VALUES ${valores}`,
+        [equipamento, data, hora, operador]
+      );
+    } else {
+      const colunaOperador = turno === '1T' ? 'operador_1t' : 'operador_2t';
+      await pool.query(
+        `UPDATE operacao SET ${colunaIni} = $1, ${colunaOperador} = $2 WHERE equipamento = $3 AND data = $4`,
+        [hora, operador, equipamento, data]
+      );
+    }
+    res.sendStatus(201);
+  } catch (err) {
+    console.error('Erro ao registrar início de operação:', err);
+    res.status(500).send('Erro ao registrar início de operação');
+  }
+});
+
+app.post('/operacao/fim', async (req, res) => {
+  const { equipamento, data, turno, operador, hora } = req.body;
+  if (!equipamento || !data || !turno || !operador || !hora) {
+    return res.status(400).json({ error: 'Campos obrigatórios: equipamento, data, turno, operador, hora' });
+  }
+  let colunaFim = turno === '1T' ? 'fim_1t' : 'fim_2t';
+  const colunaOperador = turno === '1T' ? 'operador_1t' : 'operador_2t';
+  try {
+    const result = await pool.query(
+      `UPDATE operacao SET ${colunaFim} = $1, ${colunaOperador} = $2 WHERE equipamento = $3 AND data = $4`,
+      [hora, operador, equipamento, data]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Registro de operação não encontrado para encerrar' });
+    }
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Erro ao registrar fim de operação:', err);
+    res.status(500).send('Erro ao registrar fim de operação');
   }
 });
 
@@ -306,54 +431,6 @@ app.put('/motivos-parada/:codigo/ativar', async (req, res) => {
   } catch (err) {
     console.error('Erro ao ativar motivo:', err);
     res.status(500).send('Erro ao ativar motivo');
-  }
-});
-
-app.post('/horimetro', async (req, res) => {
-  const { equipamento, dataHora, horimetro, periodo } = req.body;
-  if (!equipamento || !dataHora || !horimetro || !periodo) {
-    return res.status(400).send('Todos os campos são obrigatórios');
-  }
-  const dataValida = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/.test(dataHora);
-  if (!dataValida) {
-    return res.status(400).send('DataHora em formato inválido');
-  }
-  if (typeof horimetro !== 'string' && typeof horimetro !== 'number') {
-    return res.status(400).send('Horímetro inválido');
-  }
-  try {
-    if (periodo === 'FIM DO 1° TURNO') {
-      const busca = await pool.query(
-        "SELECT * FROM horimetro WHERE equipamento = $1 AND data2 IS NULL",
-        [equipamento]
-      );
-      if (busca.rows.length > 0) {
-        return res.status(409).send('Finalize o 2º turno.');
-      }
-      await pool.query(
-        'INSERT INTO horimetro (equipamento, data1, horimetro1) VALUES ($1, $2, $3)',
-        [equipamento, dataHora, horimetro]
-      );
-      res.status(201).send('Horímetro salvo com sucesso');
-    } else if (periodo === 'FIM DO 2° TURNO') {
-      const busca = await pool.query(
-        "SELECT * FROM horimetro WHERE equipamento = $1 AND data2 IS NULL ORDER BY data1 DESC LIMIT 1",
-        [equipamento]
-      );
-      if (busca.rows.length === 0) {
-        return res.status(404).send('Registro do 1º turno não encontrado');
-      }
-      await pool.query(
-        'UPDATE horimetro SET data2 = $1, horimetro2 = $2 WHERE equipamento = $3 AND data2 IS NULL AND data1 = $4',
-        [dataHora, horimetro, equipamento, busca.rows[0].data1]
-      );
-      res.status(200).send('Horímetro salvo com sucesso');
-    } else {
-      res.status(400).send('Período inválido');
-    }
-  } catch (err) {
-    console.error('Erro ao salvar horímetro:', err);
-    res.status(500).send('Erro ao salvar horímetro: ' + (err.detail || err.message));
   }
 });
 

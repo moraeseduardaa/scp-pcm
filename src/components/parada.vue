@@ -22,15 +22,37 @@
     </div>
 
     <div class="d-flex justify-content-between" style="gap: 2%;">
-      <select name="maquina" v-model="maquinaSelecionada" @change="verificarParadaAberta"
-        :disabled="formBloqueado || !tipoSelecionado || !celulaSelecionada"
-        class="form-control cor-text-select mt-4 d-inline-block"
-        style="width: 49%; background-color: #343a40; color: #fff;">
-        <option disabled value="">Selecionar Equipamento</option>
-        <option v-for="maquina in maquinas" :key="maquina.id" :value="maquina.id">
-          {{ maquina.nome }}
-        </option>
-      </select>
+      <div class="dropdown mt-4" style="width: 49%; position: relative; display: inline-block;" ref="dropdownMaquinas">
+        <button class="form-control text-start" style="background-color: #343a40; color: #fff;"
+          @click="mostrarDropdownMaquinas = !mostrarDropdownMaquinas"
+          :disabled="formBloqueado || !tipoSelecionado || !celulaSelecionada">
+          {{ maquinasSelecionadas.length ? `${maquinasSelecionadas.length} selecionada(s)` : 'Selecionar Equipamento' }}
+        </button>
+
+        <div v-if="mostrarDropdownMaquinas" class="dropdown-menu show p-2"
+          style="width: 100%; max-height: 348px; overflow-y: auto; background-color: #343a40; border: 1px solid #555;">
+
+          <div class="form-check text-white mb-2">
+            <input class="form-check-input" type="checkbox" id="select-all-maquinas" :checked="todosSelecionados"
+              @change="alternarTodosSelecionados" />
+            <label class="form-check-label" for="select-all-maquinas">
+              Selecionar Todos
+            </label>
+          </div>
+          <hr style="border-top: 1px solid #ffffff; margin: 8px 0;">
+
+          <div v-for="(maquina, index) in maquinas" :key="maquina.id">
+            <div class="form-check text-white">
+              <input class="form-check-input" type="checkbox" :id="'maq-' + maquina.id" :value="maquina.id"
+                v-model="maquinasSelecionadas" />
+              <label class="form-check-label" :for="'maq-' + maquina.id">
+                {{ maquina.nome }}
+              </label>
+            </div>
+            <hr v-if="index < maquinas.length - 1" style="border-top: 1px solid #ffffff; margin: 8px 0;">
+          </div>
+        </div>
+      </div>
 
       <select name="motivo" v-model="motivoSelecionado" class="form-control cor-text-select mt-4 d-inline-block"
         :disabled="formBloqueado" style="width: 49%; background-color: #343a40; color: #fff;">
@@ -59,16 +81,23 @@ export default {
       celulas: [],
       celulaSelecionada: '',
       maquinas: [],
-      maquinaSelecionada: '',
+      // maquinaSelecionada removido, não é mais usado
+      maquinasSelecionadas: [],
+      mostrarDropdownMaquinas: false,
       motivoSelecionado: '',
       operadorSelecionado: '',
       botaoInicioDesabilitado: false,
       paradaAbertaEncontrada: false,
       formBloqueado: false,
       motivosParada: [],
-      operadoresTodos: [], 
+      operadoresTodos: [],
       operadores: []
     };
+  },
+  computed: {
+    todosSelecionados() {
+      return this.maquinas.length > 0 && this.maquinasSelecionadas.length === this.maquinas.length;
+    }
   },
   watch: {
     tipoSelecionado(novoTipo) {
@@ -88,8 +117,12 @@ export default {
       } else {
         this.maquinas = [];
       }
+    },
+    maquinasSelecionadas(novasMaquinas) {
+      this.verificarParadasAbertas(novasMaquinas);
     }
   },
+
   methods: {
     getLocalDateTime() {
       const now = new Date();
@@ -136,7 +169,7 @@ export default {
               if (dados.operador && dados.operador.celula && this.celulas.includes(dados.operador.celula)) {
                 this.celulaSelecionada = dados.operador.celula;
               }
-            } catch (e) {}
+            } catch (e) { }
           }
         })
         .catch(err => {
@@ -201,6 +234,13 @@ export default {
         .map(op => op.nome_operador)
         .sort((a, b) => a.localeCompare(b, 'pt-BR'));
     },
+    alternarTodosSelecionados() {
+      if (this.todosSelecionados) {
+        this.maquinasSelecionadas = [];
+      } else {
+        this.maquinasSelecionadas = this.maquinas.map(m => m.id);
+      }
+    },
     async carregarMotivosParada() {
       try {
         const res = await fetch('http://10.1.1.247:3000/motivos-parada');
@@ -213,10 +253,9 @@ export default {
         this.motivosParada = [];
       }
     },
-
     async enviarInicio() {
-      if (!this.maquinaSelecionada) {
-        alert('Selecione uma máquina');
+      if (!this.maquinasSelecionadas.length) {
+        alert('Selecione uma ou mais máquinas');
         return;
       }
 
@@ -230,120 +269,139 @@ export default {
         return;
       }
 
-      fetch('http://10.1.1.247:3000/parada/inicio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          equipamento: this.maquinaSelecionada,
-          motivo: this.motivoSelecionado,
-          datahora_inicio_parada: this.dataHora,
-          operador: this.operadorSelecionado
+      let erros = [];
+      const promises = this.maquinasSelecionadas.map(equipamento => {
+        return fetch('http://10.1.1.247:3000/parada/inicio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            equipamento,
+            motivo: this.motivoSelecionado,
+            datahora_inicio_parada: this.dataHora,
+            operador: this.operadorSelecionado
+          })
         })
-      })
-       .then(res => {
-         if (res.ok) {
-           alert('Início da parada registrado com sucesso!');
-           this.maquinaSelecionada = '';
-           this.motivoSelecionado = '';
-           const operadorLogado = localStorage.getItem('operadorLogado');
-           if (operadorLogado) {
-             try {
-               const dados = JSON.parse(operadorLogado);
-               if (dados.tipoEquipamento) {
-                 if (dados.tipoEquipamento.toUpperCase() === 'JACQUARD') this.tipoSelecionado = 3;
-                 else if (dados.tipoEquipamento.toUpperCase() === 'AGULHA') this.tipoSelecionado = 1;
-                 else if (dados.tipoEquipamento.toUpperCase() === 'CROCHE') this.tipoSelecionado = 2;
-               }
-               if (dados.operador && dados.operador.celula) {
-                 this.celulaSelecionada = dados.operador.celula;
-               }
-               if (dados.operador && dados.operador.nome_operador) {
-                 this.operadorSelecionado = dados.operador.nome_operador;
-               }
-             } catch (e) {}
-           }
-           this.atualizarDataHora();
-         } else {
-           alert('Erro ao registrar início da parada');
-           throw new Error('Erro ao registrar início da parada');
-         }
-       })
-        .catch(err => {
-          console.error(err);
-          alert('Erro ao registrar início da parada');
-        });
-    },
+          .then(res => {
+            if (!res.ok) {
+              return res.text().then(text => {
+                throw new Error(text || `Erro ao registrar parada para o equipamento ${equipamento}`);
+              });
+            }
+          })
+          .catch(err => {
+            erros.push(err.message || `Erro no equipamento ${equipamento}`);
+          });
+      });
 
-    async verificarParadaAberta() {
-      if (!this.maquinaSelecionada) return;
-
-      try {
-        const response = await fetch(`http://10.1.1.247:3000/parada/aberta/${this.maquinaSelecionada}`);
-
-        if (response.status === 200) {
-          this.paradaAbertaEncontrada = true;
-          const parada = await response.json();
-
-          alert(`Já existe uma parada aberta para esta máquina.\n\nMotivo: ${parada.motivo}\nOperador: ${parada.operador}`);
-          this.formBloqueado = true;
-          this.botaoInicioDesabilitado = true;
-
-          this.motivoSelecionado = parada.motivo;
-          this.operadorSelecionado = parada.operador;
-          this.dataHora = this.getLocalDateTime();
-
+      Promise.all(promises).then(() => {
+        if (erros.length === 0) {
+          alert('Início da parada registrado com sucesso!');
         } else {
-          this.formBloqueado = false;
-          this.botaoInicioDesabilitado = false;
-          this.paradaAbertaEncontrada = false;
-
-          if (!this.motivoSelecionado) this.motivoSelecionado = '';
-          if (!this.operadorSelecionado) this.operadorSelecionado = '';
+          alert(`Alguns erros ocorreram:\n${erros.join('\n')}`);
         }
-      } catch (err) {
-        console.error('Erro ao verificar parada:', err);
-        alert('Erro ao verificar se já existe uma parada aberta');
+
+        this.maquinasSelecionadas = [];
+        this.motivoSelecionado = '';
+        this.atualizarDataHora();
+      });
+    },
+    async verificarParadasAbertas(maquinas) {
+      this.formBloqueado = false;
+      this.botaoInicioDesabilitado = false;
+      this.paradaAbertaEncontrada = false;
+      if (!maquinas || !maquinas.length) return;
+      let abertas = [];
+      let paradasAbertasInfo = [];
+      for (const maquinaId of maquinas) {
+        try {
+          const response = await fetch(`http://10.1.1.247:3000/parada/aberta/${maquinaId}`);
+          if (response.status === 200) {
+            const parada = await response.json();
+            abertas.push(maquinaId);
+            paradasAbertasInfo.push({ maquinaId, ...parada });
+          }
+        } catch (err) {
+        }
+      }
+      if (abertas.length > 0) {
+        this.paradaAbertaEncontrada = true;
+        const parada = paradasAbertasInfo[0];
+        this.motivoSelecionado = parada.motivo;
+        this.operadorSelecionado = parada.operador;
+        this.dataHora = this.getLocalDateTime();
+        this.formBloqueado = abertas.length === maquinas.length;
+        this.botaoInicioDesabilitado = abertas.length === maquinas.length;
+        this.mostrarDropdownMaquinas = false;
+
+        // Se todas as máquinas selecionadas estão abertas e o motivo e operador são iguais, mostra um alert só
+        if (
+          abertas.length === maquinas.length &&
+          paradasAbertasInfo.every(info => info.motivo === paradasAbertasInfo[0].motivo && info.operador === paradasAbertasInfo[0].operador)
+        ) {
+          alert(`Já existe uma parada aberta para todas as máquinas selecionadas.\n\nMotivo: ${paradasAbertasInfo[0].motivo}\nOperador: ${paradasAbertasInfo[0].operador}`);
+        } else {
+          paradasAbertasInfo.forEach(info => {
+            alert(`Já existe uma parada aberta para esta máquina.\n\nMotivo: ${info.motivo}\nOperador: ${info.operador}`);
+          });
+        }
+      } else {
+        this.formBloqueado = false;
+        this.botaoInicioDesabilitado = false;
+        this.paradaAbertaEncontrada = false;
       }
     },
-
     async enviarFim() {
-      if (!this.maquinaSelecionada) {
-        alert('Selecione uma máquina');
+      if (!this.maquinasSelecionadas.length) {
+        alert('Selecione uma ou mais máquinas');
         return;
       }
 
-      fetch('http://10.1.1.247:3000/parada/fim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          equipamento: this.maquinaSelecionada,
-          datahora_fim_parada: this.dataHora,
-          operador: this.operadorSelecionado || ''
+      let erros = [];
+      const promises = this.maquinasSelecionadas.map(equipamento => {
+        return fetch('http://10.1.1.247:3000/parada/fim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            equipamento,
+            datahora_fim_parada: this.dataHora,
+            operador: this.operadorSelecionado || ''
+          })
         })
-      })
-        .then(res => {
-          if (res.ok) {
-            alert('Término da parada registrado com sucesso!');
-            this.maquinaSelecionada = '';
-            this.motivoSelecionado = '';
-            this.operadorSelecionado = '';
-            this.tipoSelecionado = '';
-            this.celulaSelecionada = '';
+          .then(res => {
+            if (!res.ok) {
+              return res.text().then(text => {
+                throw new Error(text || `Erro ao registrar término da parada para o equipamento ${equipamento}`);
+              });
+            }
+          })
+          .catch(err => {
+            erros.push(err.message || `Erro no equipamento ${equipamento}`);
+          });
+      });
 
-            this.formBloqueado = false;
-            this.botaoInicioDesabilitado = false;
-            this.paradaAbertaEncontrada = false;
-            this.atualizarDataHora();
-          } else {
-            throw new Error('Erro ao registrar término da parada');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          alert('Erro ao registrar término da parada');
-        });
+      Promise.all(promises).then(() => {
+        if (erros.length === 0) {
+          alert('Término da parada registrado com sucesso!');
+        } else {
+          const unicos = [...new Set(erros)];
+          alert(`Alguns erros ocorreram:\n${unicos.join('\n')}`);
+        }
+
+        this.maquinasSelecionadas = [];
+        this.motivoSelecionado = '';
+        this.formBloqueado = false;
+        this.botaoInicioDesabilitado = false;
+        this.atualizarDataHora();
+      });
+    },
+    cliqueForaDoDropdown(event) {
+      if (this.mostrarDropdownMaquinas) {
+        const dropdown = this.$refs.dropdownMaquinas;
+        if (dropdown && !dropdown.contains(event.target)) {
+          this.mostrarDropdownMaquinas = false;
+        }
+      }
     }
-
   },
   mounted() {
     this.carregarMotivosParada();
@@ -363,8 +421,12 @@ export default {
         if (dados.operador && dados.operador.nome_operador) {
           this.operadorSelecionado = dados.operador.nome_operador;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
+    document.addEventListener('mousedown', this.cliqueForaDoDropdown);
+  },
+  beforeDestroy() {
+    document.removeEventListener('mousedown', this.cliqueForaDoDropdown);
   }
 }
 </script>

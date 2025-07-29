@@ -12,6 +12,7 @@
           <div class="mx-auto mb-2" style="height: 4px; width: 80%; background: #dc3545;"></div>
 
           <div class="d-flex justify-content-center gap-3 mt-4">
+            <button class="btn btn-lg" style="background-color: #000080; color: #fff;" @click="abrirModalOperacao">Registrar Operação</button>
             <button class="btn btn-secondary btn-lg" @click="abrirModalHorimetro">Registrar Horímetro</button>
             <button class="btn btn-danger btn-lg" @click="abrirModalParada">Consultar Paradas</button>
           </div>
@@ -32,7 +33,7 @@
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="horimetroModalLabel">Início e Termino de Operação</h5>
+          <h5 class="modal-title" id="horimetroModalLabel">Registro Horímetro</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
@@ -55,16 +56,33 @@
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="operacaoModal" tabindex="-1" aria-labelledby="operacaoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="operacaoModalLabel">Início e Fim de Operações</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <Operacao
+           :key="operacaoKey" />
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
 import Horimetro from './components/horimetro.vue';
 import ConsultarParadas from './components/consultarparadas.vue';
 import Login from './components/login.vue';
+import Operacao from './components/operacao.vue';
+
 
 export default {
   name: 'App',
-  components: { Horimetro, ConsultarParadas, Login },
+  components: { Horimetro, ConsultarParadas, Login, Operacao },
   data() {
     return {
       operadorLogado: null,
@@ -73,7 +91,8 @@ export default {
         hour: '2-digit', minute: '2-digit'
       }),
       horimetroKey: 0,
-      paradaKey: 0
+      paradaKey: 0,
+      operacaoKey: 0
     };
   },
   methods: {
@@ -96,6 +115,11 @@ export default {
     abrirModalParada() {
       this.paradaKey++;
       const modal = new window.bootstrap.Modal(document.getElementById('paradaModal'));
+      modal.show();
+    },
+    abrirModalOperacao() {
+      this.operacaoKey++;
+      const modal = new window.bootstrap.Modal(document.getElementById('operacaoModal'));
       modal.show();
     }
   },
@@ -146,23 +170,18 @@ export default {
 body {
   background-color: #212529;
 }
-
 .bg-dark {
   background-color: #212529 !important;
 }
-
 .card {
   border-radius: 1.5rem;
 }
-
 .card-body {
   border-radius: 1.5rem;
 }
-
 button.btn {
   min-width: 150px;
 }
-
 .modal-content {
   background-color: #343a40 !important;
   color: #fff;

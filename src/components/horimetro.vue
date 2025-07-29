@@ -1,4 +1,3 @@
-
 <template>
   <div>
     <input
@@ -35,7 +34,6 @@
       class="form-control cor-text-select mt-4 d-inline-block"
       style="width: 49%; background-color: #343a40; color: #fff;">
       <option disabled value="">Selecionar Equipamento</option>
-      <option value="TODOS">☑️ Todos os Equipamentos</option>
       <option v-for="maquina in maquinas" :key="maquina.id" :value="maquina.id">
         {{ maquina.nome }}
       </option>
@@ -185,9 +183,7 @@ export default {
         return;
       }
 
-      const equipamentos = this.maquinaSelecionada === "TODOS"
-        ? this.maquinas.map(m => m.id)
-        : [this.maquinaSelecionada];
+      const equipamentos = [this.maquinaSelecionada];
 
       let erros = [];
 
@@ -218,16 +214,13 @@ export default {
 
       Promise.all(promises).then(() => {
         if (erros.length === 0) {
-          alert('Horímetro(s) salvo(s) com sucesso!');
+          alert('Horímetro salvo com sucesso!');
         } else {
           alert(`Alguns erros ocorreram:\n${erros.join('\n')}`);
         }
 
         this.maquinaSelecionada = '';
-        this.celulaSelecionada = '';
-        this.tipoSelecionado = '';
         this.horimetroValue = '';
-        this.periodoSelecionado = '';
         this.dataHora = this.getLocalDateTime();
       });
     }
