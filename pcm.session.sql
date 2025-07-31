@@ -22,13 +22,13 @@ CREATE TABLE motivos_parada (
     status VARCHAR(10) NOT NULL DEFAULT 'ATIVO'
 );
 
-SELECT codigo, motivo, status 
-FROM motivos_parada 
-WHERE status = 'ATIVO'
-ORDER BY motivo;
+SELECT codigo, equipamento, ini_1t, fim_1t, ini_2t, fim_2t
+FROM horimetro 
+WHERE ini_1t IS NOT NULL
+ORDER BY codigo;
 
-DELETE FROM paradas_equipamentos
-WHERE codigo IN (2906,2907,2908,2909,2910,2911,2912,2913,2914,2915,2916,2917,2918,2919,2920);
+DELETE FROM horimetro
+WHERE codigo IN (1110, 1111, 1112, 1113, 1156);
 
 alter table unidade add column fabrica VARCHAR(3);
  
@@ -46,3 +46,5 @@ join tipo_equipamento on equipamento.tipo = tipo_equipamento.codigo
 where unidade.codigo = 4
 and tipo_equipamento.codigo in (5,11);
 
+
+INSERT INTO horimetro (equipamento, ini_1t) VALUES (354, '2025-07-30T08:00:00');
