@@ -1,12 +1,12 @@
-const express = require("express");
-const cors = require("cors");
-const pool = require("./db");
-const fs = require("fs");
-const path = require("path");
+const express = require('express');
+const cors = require('cors');
+const pool = require('./db'); 
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const port = 3000;
-const MOTIVOS_PATH = path.join(__dirname, "motivos.json");
+const MOTIVOS_PATH = path.join(__dirname, 'motivos.json');
 
 app.use(cors());
 app.use(express.json());
