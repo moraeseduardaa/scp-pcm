@@ -79,7 +79,6 @@ import ConsultarParadas from './components/consultarparadas.vue';
 import Login from './components/login.vue';
 import Operacao from './components/operacao.vue';
 
-
 export default {
   name: 'App',
   components: { Horimetro, ConsultarParadas, Login, Operacao },
@@ -99,14 +98,12 @@ export default {
     handleLogin(dadosLogin) {
       this.operadorLogado = dadosLogin;
     },
-
     logout() {
       if (confirm('Deseja realmente sair do sistema?')) {
         this.operadorLogado = null;
         localStorage.removeItem('operadorLogado');
       }
     },
-
     abrirModalHorimetro() {
       this.horimetroKey++;
       const modal = new window.bootstrap.Modal(document.getElementById('horimetroModal'));
