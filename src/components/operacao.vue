@@ -34,7 +34,7 @@
 
           <div class="form-check text-white mb-2">
             <input class="form-check-input" type="checkbox" id="select-all-maquinas" :checked="todosSelecionados"
-              @change="alternarTodosSelecionados" />
+              @change="onAlternarTodosSelecionados" />
             <label class="form-check-label" for="select-all-maquinas">
               Selecionar Todos
             </label>
@@ -44,7 +44,7 @@
           <div v-for="(maquina, index) in maquinas" :key="maquina.id">
             <div class="form-check text-white">
               <input class="form-check-input" type="checkbox" :id="'maq-' + maquina.id" :value="maquina.id"
-                v-model="maquinasSelecionadas" />
+                v-model="maquinasSelecionadas" @mousedown.stop />
               <label class="form-check-label" :for="'maq-' + maquina.id">
                 {{ maquina.nome }}
               </label>
@@ -56,292 +56,220 @@
     </div>
 
     <div class="mt-4 d-flex gap-4">
-      <button class="btn btn-success" @click="registrarInicio">Início</button>
-      <button class="btn btn-danger" @click="registrarFim">Fim</button>
+      <button class="btn btn-success" @click="registrarOperacao('inicio')"
+        :disabled="botaoInicioDesabilitado">Início</button>
+      <button class="btn btn-danger" @click="registrarOperacao('fim')" :disabled="botaoFimDesabilitado">Fim</button>
     </div>
-    
-
-
-    
   </div>
 </template>
 
-<script>
-export default {
-  name: 'Horimetro',
-  data() {
-    return {
-      dataHora: this.getLocalDateTime(),
-      tipoSelecionado: '',
-      celulas: [],
-      celulaSelecionada: '',
-      maquinas: [],
-      mostrarDropdownMaquinas: false,
-      maquinasSelecionadas: [],
-    };
-  },
-  computed: {
-    todosSelecionados() {
-      return this.maquinas.length > 0 &&
-        this.maquinasSelecionadas.length === this.maquinas.length;
-    }
-  },
-  watch: {
-    tipoSelecionado(novoTipo) {
-      this.celulaSelecionada = '';
-      this.celulas = [];
-      this.maquinas = [];
-      if (novoTipo) {
-        this.carregarCelulas();
-      }
-    },
-    celulaSelecionada(novaCelula) {
-      if (this.tipoSelecionado && novaCelula) {
-        this.carregarMaquinas();
-      } else {
-        this.maquinas = [];
-      }
-    }
-  },
-  methods: {
-    getLocalDateTime() {
-      const now = new Date();
-      const offset = now.getTimezoneOffset();
-      const local = new Date(now.getTime() - offset * 60000);
-      return local.toISOString().slice(0, 16);
-    },
-    atualizarDataHora() {
-      this.dataHora = this.getLocalDateTime();
-    },
-    formatDate(isoString, timeOnly = false) {
-      if (!isoString) return '';
-      try {
-        const date = new Date(isoString);
-        if (isNaN(date.getTime())) return '';
-        const pad = (n) => String(n).padStart(2, '0');
-        if (timeOnly) {
-          return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-        }
-        return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${String(date.getFullYear()).slice(-2)} - ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-      } catch (e) {
-        console.warn('Erro ao formatar data:', isoString, e);
-        return '';
-      }
-    },
-    carregarCelulas() {
-      const tipoCodigo = this.tipoSelecionado;
-      if (!tipoCodigo) {
-        this.celulas = [];
-        return;
-      }
-      fetch(`http://10.1.1.247:3000/celulas?tipo=${tipoCodigo}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.length && typeof data[0] === 'object' && data[0].celula) {
-            this.celulas = data.map(item => item.celula);
-          } else {
-            this.celulas = data;
-          }
-          const operadorLogado = localStorage.getItem('operadorLogado');
-          if (operadorLogado) {
-            try {
-              const dados = JSON.parse(operadorLogado);
-              if (dados.operador && dados.operador.celula && this.celulas.includes(dados.operador.celula)) {
-                this.celulaSelecionada = dados.operador.celula;
-              }
-            } catch (e) { }
-          }
-        })
-        .catch(err => {
-          console.error('Erro ao buscar células:', err);
-        });
-    },
-    carregarMaquinas() {
-      const tipoCodigo = this.tipoSelecionado;
-      if (!this.celulaSelecionada || !tipoCodigo) {
-        this.maquinas = [];
-        return;
-      }
-      fetch(`http://10.1.1.247:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`)
-        .then(res => res.json())
-        .then(data => {
-          this.maquinas = data
-            .map(item => ({
-              id: item.codigo,
-              nome: item.descricao
-            }))
-            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-        })
-        .catch(err => {
-          console.error('Erro ao buscar máquinas:', err);
-        });
-    },
-    alternarTodosSelecionados(event) {
-      if (event.target.checked) {
-        this.maquinasSelecionadas = this.maquinas.map(m => m.id);
-      } else {
-        this.maquinasSelecionadas = [];
-      }
-    },
-    cliqueForaDoDropdown(event) {
-      if (this.mostrarDropdownMaquinas) {
-        const dropdown = this.$el.querySelector('.dropdown');
-        if (dropdown && !dropdown.contains(event.target)) {
-          this.mostrarDropdownMaquinas = false;
-        }
-      }
-    },
-    async registrarInicio() {
-      if (!this.maquinasSelecionadas.length) {
-        alert('Selecione uma ou mais máquinas');
-        return;
-      }
-      const erros = [];
-      const promises = this.maquinasSelecionadas.map(async equipamento => {
-        let registro;
-        try {
-          const res = await fetch(`http://10.1.1.247:3000/horimetro/aberto/${equipamento}`);
-          if (res.status === 200) {
-            registro = await res.json();
-          }
-        } catch (e) {}
+<script setup>
+import { ref, watch, onMounted, onBeforeUnmount, computed } from "vue";
+import { useUtils } from "@/composables/MetodosCompartilhados.js";
 
-        if (!registro) {
-          const payload = {
-            equipamento,
-            ini_1t: this.dataHora,
-          };
-          return fetch('http://10.1.1.247:3000/horimetro', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          })
-            .then(res => {
-              if (!res.ok) {
-                return res.text().then(text => { throw new Error(text || `Erro ao registrar início para ${equipamento}`); });
-              }
-            })
-            .catch(err => { erros.push(err.message || `Erro no equipamento ${equipamento}`); });
-        } else if (registro.ini_1t && registro.fim_1t && !registro.ini_2t) {
-          const payload = { ini_2t: this.dataHora };
-          return fetch(`http://10.1.1.247:3000/horimetro/${registro.cod}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          })
-            .then(res => {
-              if (!res.ok) {
-                return res.text().then(text => { throw new Error(text || `Erro ao registrar início2 para ${equipamento}`); });
-              }
-            })
-            .catch(err => { erros.push(err.message || `Erro no equipamento ${equipamento}`); });
-        } else if (registro.ini_1t && !registro.fim_1t) {
-          erros.push(`Já existe operação aberta para o equipamento ${equipamento}`);
-        } else {
-          erros.push(`Não foi possível registrar início para o equipamento ${equipamento}`);
-        }
-      });
-      await Promise.all(promises);
-      if (erros.length === 0) {
-        alert('Início registrado com sucesso!');
-      } else {
-        alert(`Alguns erros ocorreram:\n${erros.join('\n')}`);
-      }
-      this.maquinasSelecionadas = [];
-      this.dataHora = this.getLocalDateTime();
-    },
+const dataHora = ref("");
+const tipoSelecionado = ref("");
+const celulas = ref([]);
+const celulaSelecionada = ref("");
+const maquinas = ref([]);
+const maquinasSelecionadas = ref([]);
+const mostrarDropdownMaquinas = ref(false);
+const botaoInicioDesabilitado = ref(false);
+const botaoFimDesabilitado = ref(false);
 
-    async registrarFim() {
-      if (!this.maquinasSelecionadas.length) {
-        alert('Selecione uma ou mais máquinas');
-        return;
-      }
-      const erros = [];
-      const promises = this.maquinasSelecionadas.map(async equipamento => {
-        let registro;
-        try {
-          const res = await fetch(`http://10.1.1.247:3000/horimetro/aberto/${equipamento}`);
-          if (res.status === 200) {
-            registro = await res.json();
-          }
-        } catch (e) {}
+const {
+  getLocalDateTime,
+  atualizarDataHora,
+  formatDate,
+  carregarCelulas,
+  carregarMaquinas,
+  alternarTodosSelecionados,
+  cliqueForaDoDropdown,
+  carregarDadosOperadorLogado,
+} = useUtils();
 
-        if (registro && registro.ini_1t && !registro.fim_1t) {
-          const payload = { fim_1t: this.dataHora };
-          return fetch(`http://10.1.1.247:3000/horimetro/${registro.cod}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          })
-            .then(res => {
-              if (!res.ok) {
-                return res.text().then(text => { throw new Error(text || `Erro ao registrar fim1 para ${equipamento}`); });
-              }
-            })
-            .catch(err => { erros.push(err.message || `Erro no equipamento ${equipamento}`); });
-        } else if (registro && registro.ini_2t && !registro.fim_2t) {
-          const payload = { fim_2t: this.dataHora };
-          return fetch(`http://10.1.1.247:3000/horimetro/${registro.cod}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          })
-            .then(res => {
-              if (!res.ok) {
-                return res.text().then(text => { throw new Error(text || `Erro ao registrar fim2 para ${equipamento}`); });
-              }
-            })
-            .catch(err => { erros.push(err.message || `Erro no equipamento ${equipamento}`); });
-        } else if (!registro) {
-          const payload = {
-            equipamento,
-            ini_1t: this.dataHora,
-            fim_1t: this.dataHora,
-          };
-          return fetch('http://10.1.1.247:3000/horimetro', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          })
-            .then(res => {
-              if (!res.ok) {
-                return res.text().then(text => { throw new Error(text || `Erro ao registrar fim para ${equipamento}`); });
-              }
-            })
-            .catch(err => { erros.push(err.message || `Erro no equipamento ${equipamento}`); });
-        } else {
-          erros.push(`Não foi possível registrar fim para o equipamento ${equipamento}`);
-        }
-      });
-      await Promise.all(promises);
-      if (erros.length === 0) {
-        alert('Fim registrado com sucesso!');
-      } else {
-        alert(`Alguns erros ocorreram:\n${erros.join('\n')}`);
+dataHora.value = getLocalDateTime();
+
+watch(tipoSelecionado, (novoTipo) => {
+  celulaSelecionada.value = "";
+  celulas.value = [];
+  maquinas.value = [];
+  if (novoTipo) {
+    carregarCelulas(tipoSelecionado, celulas, celulaSelecionada);
+  }
+});
+
+watch(celulaSelecionada, (novaCelula) => {
+  if (tipoSelecionado.value && novaCelula) {
+    carregarMaquinas(tipoSelecionado, celulaSelecionada, maquinas);
+  } else {
+    maquinas.value = [];
+  }
+});
+
+watch(maquinasSelecionadas, () => {
+  verificarOperacaoAberta();
+});
+
+const todosSelecionados = computed(() => {
+  return (
+    maquinas.value.length > 0 &&
+    maquinasSelecionadas.value.length === maquinas.value.length
+  );
+});
+
+function onAlternarTodosSelecionados(event) {
+  alternarTodosSelecionados(event, maquinas, maquinasSelecionadas);
+}
+
+function onCliqueForaDoDropdown(event) {
+  cliqueForaDoDropdown(event, mostrarDropdownMaquinas, document.body);
+}
+
+async function buscarRegistroAberto(equipamento, dataDia) {
+  try {
+    const res = await fetch(
+      `http://10.1.1.247:3000/horimetro/aberto/${equipamento}?data=${dataDia}`
+    );
+    if (res.ok && res.status !== 204) return await res.json();
+  } catch (_) { }
+  return null;
+}
+
+async function enviarRequisicao(url, metodo, payload) {
+  try {
+    const res = await fetch(url, {
+      method: metodo,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (url.includes("/operacao/inicio") && res.status === 200) {
+      throw new Error("__JA_ABERTO__");
+    }
+
+    if (!res.ok) {
+      const texto = await res.text();
+      if (
+        res.status === 409 &&
+        texto.includes("Não há registro aberto para encerrar")
+      ) {
+        throw new Error("__NAO_HA_OPERACAO_ABERTA__");
       }
-      this.maquinasSelecionadas = [];
-      this.dataHora = this.getLocalDateTime();
+      throw new Error(texto || "Erro ao enviar requisição");
     }
-  },
-  mounted() {
-    const operadorLogado = localStorage.getItem('operadorLogado');
-    if (operadorLogado) {
-      try {
-        const dados = JSON.parse(operadorLogado);
-        if (dados.tipoEquipamento) {
-          if (dados.tipoEquipamento.toUpperCase() === 'JACQUARD') this.tipoSelecionado = 3;
-          else if (dados.tipoEquipamento.toUpperCase() === 'AGULHA') this.tipoSelecionado = 1;
-          else if (dados.tipoEquipamento.toUpperCase() === 'CROCHE') this.tipoSelecionado = 2;
-        }
-        if (dados.operador && dados.operador.nome_operador) {
-          this.operadorSelecionado = dados.operador.nome_operador;
-        }
-      } catch (e) { }
-    }
-    document.addEventListener('mousedown', this.cliqueForaDoDropdown);
-  },
-  beforeDestroy() {
-    document.removeEventListener('mousedown', this.cliqueForaDoDropdown);
+
+    return true;
+  } catch (err) {
+    throw err?.message || "Erro inesperado na requisição";
   }
 }
+
+async function registrarOperacao(tipo) {
+  if (!maquinasSelecionadas.value.length) {
+    alert("Selecione uma ou mais máquinas");
+    return;
+  }
+
+  const hora = dataHora.value;
+  const url = `http://10.1.1.247:3000/operacao/${tipo}`;
+  const erros = [];
+  let jaAbertoCount = 0;
+  let nenhumParaEncerrarCount = 0;
+
+  const promises = maquinasSelecionadas.value.map(async (equipamento) => {
+    if (tipo === "inicio") {
+      const dataDia = hora.slice(0, 10);
+      const registro = await buscarRegistroAberto(equipamento, dataDia);
+      if (
+        registro &&
+        registro.ini_1t &&
+        registro.fim_1t &&
+        registro.ini_2t
+      ) {
+        jaAbertoCount++;
+        return;
+      }
+    }
+    try {
+      await enviarRequisicao(url, "POST", { equipamento, hora });
+    } catch (e) {
+      if (e === "__JA_ABERTO__" && tipo === "inicio") {
+        jaAbertoCount++;
+      } else if (e === "__NAO_HA_OPERACAO_ABERTA__" && tipo === "fim") {
+        nenhumParaEncerrarCount++;
+      } else {
+        erros.push(`Erro em ${equipamento}: ${e}`);
+      }
+    }
+  });
+
+  await Promise.all(promises);
+  const total = maquinasSelecionadas.value.length;
+  const sucessoCount = total - jaAbertoCount - nenhumParaEncerrarCount - erros.length;
+  const mensagens = [];
+
+  if (jaAbertoCount > 0 && tipo === "inicio") {
+    mensagens.push(
+      `Já existe início de operação aberta para ${jaAbertoCount} equipamento(s).`
+    );
+  }
+  if (nenhumParaEncerrarCount > 0 && tipo === "fim") {
+    mensagens.push(
+      `Operação já encerrada em ${nenhumParaEncerrarCount} equipamento(s).`
+    );
+  }
+  if (sucessoCount > 0) {
+    const texto = tipo === "inicio" ? "Início" : "Fim";
+    mensagens.push(`\n${texto} registrado com sucesso para ${sucessoCount} equipamento(s).`);
+  }
+  if (erros.length > 0) {
+    mensagens.push("Erros:\n" + erros.join("\n"));
+  }
+
+  alert(mensagens.join("\n"));
+  maquinasSelecionadas.value = [];
+  dataHora.value = getLocalDateTime();
+  verificarOperacaoAberta();
+}
+
+async function verificarOperacaoAberta() {
+  const [equipamento] = maquinasSelecionadas.value;
+
+  if (!equipamento || maquinasSelecionadas.value.length !== 1) {
+    botaoInicioDesabilitado.value = false;
+    botaoFimDesabilitado.value = false;
+    return;
+  }
+
+  const dataDia = dataHora.value.slice(0, 10);
+  const registro = await buscarRegistroAberto(equipamento, dataDia);
+  const { ini_1t = null, fim_1t = null, ini_2t = null, fim_2t = null } = registro || {};
+
+  if (!ini_1t) {
+    botaoInicioDesabilitado.value = false;
+    botaoFimDesabilitado.value = true;
+  } else if (ini_1t && !fim_1t) {
+    botaoInicioDesabilitado.value = true;
+    botaoFimDesabilitado.value = false;
+  } else if (fim_1t && !ini_2t) {
+    botaoInicioDesabilitado.value = false;
+    botaoFimDesabilitado.value = true;
+  } else if (ini_2t && !fim_2t) {
+    botaoInicioDesabilitado.value = true;
+    botaoFimDesabilitado.value = false;
+  } else {
+    botaoInicioDesabilitado.value = true;
+    botaoFimDesabilitado.value = true;
+  }
+}
+
+onMounted(() => {
+  carregarDadosOperadorLogado(tipoSelecionado, celulaSelecionada);
+  document.addEventListener('mousedown', onCliqueForaDoDropdown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onCliqueForaDoDropdown);
+});
 </script>
