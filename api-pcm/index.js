@@ -1,12 +1,12 @@
-const express = require('express');
-const cors = require('cors');
-const pool = require('./db'); 
-const fs = require('fs');
-const path = require('path');
+const express = require("express");
+const cors = require("cors");
+const pool = require("./db");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 const port = 3000;
-const MOTIVOS_PATH = path.join(__dirname, 'motivos.json');
+const MOTIVOS_PATH = path.join(__dirname, "motivos.json");
 
 app.use(cors());
 app.use(express.json());
@@ -53,7 +53,6 @@ app.get("/unidades-fabrica", async (req, res) => {
 app.get("/equipamentos", async (req, res) => {
   const tipo = req.query["tipo"];
   const celula = req.query["celula"];
-
   console.log("req.query:", req.query);
   console.log("req.query keys:", Object.keys(req.query));
   console.log("celula diretamente acessado:", req.query["celula"]);
@@ -61,23 +60,17 @@ app.get("/equipamentos", async (req, res) => {
   if (!tipo || !celula) {
     return res.status(400).json({ error: "Tipo e célula são obrigatórios" });
   }
-
   const sqlCelula = `SELECT codigo FROM celula WHERE celula = $1 AND tipo_equipamento = $2`;
   const paramsCelula = [celula, tipo];
-
   try {
     const resultCelula = await pool.query(sqlCelula, paramsCelula);
-
     if (resultCelula.rows.length === 0) {
       return res.json([]);
     }
-
     const codCelula = resultCelula.rows[0].codigo;
-
     const sql = `SELECT codigo, descricao FROM equipamento
                  WHERE status = 'ATIVO' AND tipo = $1 AND cod_celula = $2`;
     const params = [tipo, codCelula];
-
     const result = await pool.query(sql, params);
     res.json(result.rows);
   } catch (err) {
@@ -204,7 +197,6 @@ app.get("/paradas/abertas", async (req, res) => {
 
 app.get("/parada/aberta/:equipamento", async (req, res) => {
   const equipamento = req.params.equipamento;
-
   try {
     const result = await pool.query(
       `SELECT motivo, operador, datahora_inicio_parada 
@@ -213,7 +205,6 @@ app.get("/parada/aberta/:equipamento", async (req, res) => {
        LIMIT 1`,
       [equipamento]
     );
-
     if (result.rows.length > 0) {
       res.json(result.rows[0]);
     } else {
@@ -232,16 +223,14 @@ app.get("/setores-por-unidade", async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `
-      SELECT DISTINCT equipamento.tipo, tipo_equipamento.descricao AS tipo_descricao
+      `SELECT DISTINCT equipamento.tipo, tipo_equipamento.descricao AS tipo_descricao
       FROM equipamento
       JOIN unidade ON equipamento.unidade = unidade.codigo
       JOIN tipo_equipamento ON equipamento.tipo = tipo_equipamento.codigo
       WHERE unidade.unidade = $1
         AND unidade.fabrica = 'SIM'
         AND tipo_equipamento.codigo IN (1,2,3,5,6,8,11)
-      ORDER BY tipo_equipamento.descricao
-    `,
+      ORDER BY tipo_equipamento.descricao`,
       [unidade]
     );
     res.json(result.rows);
@@ -252,58 +241,62 @@ app.get("/setores-por-unidade", async (req, res) => {
 });
 
 app.post("/horimetro", async (req, res) => {
-  const { equipamento, dataHora, horimetro, periodo } = req.body;
-  if (!equipamento || !dataHora || !horimetro || !periodo) {
+  const { equipamento, dataHora, dataBusca, horimetro, periodo } = req.body;
+  if (!equipamento || !dataHora || !dataBusca || !horimetro || !periodo) {
     return res.status(400).send("Todos os campos são obrigatórios");
   }
-  const dataValida = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/.test(dataHora);
-  if (!dataValida) {
-    return res.status(400).send("DataHora em formato inválido");
-  }
-  if (typeof horimetro !== "string" && typeof horimetro !== "number") {
-    return res.status(400).send("Horímetro inválido");
+  const dataValida = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dataHora);
+  const dataBuscaValida = /^\d{4}-\d{2}-\d{2}$/.test(dataBusca);
+  if (!dataValida || !dataBuscaValida) {
+    return res.status(400).send("Formato de data inválido");
   }
   try {
-    if (periodo === "FIM DO 1° TURNO") {
-      const busca = await pool.query(
-        "SELECT * FROM horimetro WHERE equipamento = $1 AND data2 IS NULL",
-        [equipamento]
-      );
-      if (busca.rows.length > 0) {
-        return res.status(409).send("Finalize o 2º turno.");
+    const busca = await pool.query(
+      `SELECT * FROM horimetro 
+       WHERE equipamento = $1 
+       AND (CAST(data1 AS DATE) = $2 OR CAST(data2 AS DATE) = $2)
+       ORDER BY codigo DESC
+       LIMIT 1`,
+      [equipamento, dataBusca]
+    );
+
+    const registroExistente = busca.rows[0];
+    if (registroExistente) {
+      const { codigo } = registroExistente;
+
+      if (periodo === "FIM DO 1° TURNO" && !registroExistente.data1) {
+        await pool.query(
+          `UPDATE horimetro SET data1 = $1, horimetro1 = $2 WHERE codigo = $3`,
+          [dataHora, horimetro, codigo]
+        );
+        return res.status(200).send("Horímetro do 1º turno salvo com sucesso");
       }
+      if (periodo === "FIM DO 2° TURNO" && !registroExistente.data2) {
+        await pool.query(
+          `UPDATE horimetro SET data2 = $1, horimetro2 = $2 WHERE codigo = $3`,
+          [dataHora, horimetro, codigo]
+        );
+        return res.status(200).send("Horímetro do 2º turno salvo com sucesso");
+      }
+    }
+    if (periodo === "FIM DO 1° TURNO") {
       await pool.query(
-        "INSERT INTO horimetro (equipamento, data1, horimetro1) VALUES ($1, $2, $3)",
+        `INSERT INTO horimetro (equipamento, data1, horimetro1) VALUES ($1, $2, $3)`,
         [equipamento, dataHora, horimetro]
       );
-      res.status(201).send("Horímetro do 1º turno salvo com sucesso");
-    } else if (periodo === "FIM DO 2° TURNO") {
-      const busca = await pool.query(
-        "SELECT * FROM horimetro WHERE equipamento = $1 AND data2 IS NULL ORDER BY data1 DESC LIMIT 1",
-        [equipamento]
-      );
-      if (busca.rows.length === 0) {
-        await pool.query(
-          "INSERT INTO horimetro (equipamento, data2, horimetro2) VALUES ($1, $2, $3)",
-          [equipamento, dataHora, horimetro]
-        );
-        return res
-          .status(201)
-          .send("Horímetro do 2º turno salvo (sem 1º turno)");
-      }
-      await pool.query(
-        "UPDATE horimetro SET data2 = $1, horimetro2 = $2 WHERE equipamento = $3 AND data2 IS NULL AND data1 = $4",
-        [dataHora, horimetro, equipamento, busca.rows[0].data1]
-      );
-      res.status(200).send("Horímetro do 2º turno salvo com sucesso");
-    } else {
-      res.status(400).send("Período inválido");
+      return res.status(201).send("Novo horímetro do 1º turno inserido");
     }
+    if (periodo === "FIM DO 2° TURNO") {
+      await pool.query(
+        `INSERT INTO horimetro (equipamento, data2, horimetro2) VALUES ($1, $2, $3)`,
+        [equipamento, dataHora, horimetro]
+      );
+      return res.status(201).send("Novo horímetro do 2º turno inserido");
+    }
+    return res.status(400).send("Período inválido");
   } catch (err) {
     console.error("Erro ao salvar horímetro:", err);
-    res
-      .status(500)
-      .send("Erro ao salvar horímetro: " + (err.detail || err.message));
+    res.status(500).send("Erro ao salvar horímetro: " + (err.detail || err.message));
   }
 });
 
@@ -357,11 +350,9 @@ app.post("/operadores", async (req, res) => {
       [celula, tipo_equipamento]
     );
     if (celulaResult.rows.length === 0) {
-      return res
-        .status(400)
-        .json({
-          error: "Célula não encontrada para o tipo de equipamento informado",
-        });
+      return res.status(400).json({
+        error: "Célula não encontrada para o tipo de equipamento informado",
+      });
     }
     const cod_celula = celulaResult.rows[0].codigo;
     await pool.query(
@@ -398,14 +389,13 @@ app.post("/operacao/inicio", async (req, res) => {
         return res.sendStatus(201);
       }
       if (!reg.fim_1t) {
-        return res.sendStatus(200); 
+        return res.sendStatus(200);
       }
       if (reg.ini_2t && !reg.fim_2t) {
-        return res.sendStatus(200); 
+        return res.sendStatus(200);
       }
       return res.status(409).send("Turnos já registrados.");
     }
-
     await pool.query(
       "INSERT INTO horimetro (equipamento, ini_1t) VALUES ($1, $2)",
       [equipamento, hora]
@@ -561,11 +551,9 @@ app.put("/operadores/:codigo", async (req, res) => {
       [celula, tipo_equipamento]
     );
     if (celulaResult.rows.length === 0) {
-      return res
-        .status(400)
-        .json({
-          error: "Célula não encontrada para o tipo de equipamento informado",
-        });
+      return res.status(400).json({
+        error: "Célula não encontrada para o tipo de equipamento informado",
+      });
     }
     const cod_celula = celulaResult.rows[0].codigo;
     await pool.query(
