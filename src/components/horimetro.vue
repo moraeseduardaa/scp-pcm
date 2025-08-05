@@ -140,4 +140,5 @@ function enviarHorimetro() {
 onMounted(() => {
   carregarDadosOperadorLogado(tipoSelecionado, celulaSelecionada, operadorSelecionado);
 });
+
 </script>
