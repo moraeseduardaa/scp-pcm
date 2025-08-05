@@ -60,94 +60,89 @@
     </div>
 </template>
 
-<script>
+<script setup>
+import { ref, watch, onMounted } from 'vue';
 import Config from './config.vue';
 
-export default {
-    name: 'Login',
-    components: { Config },
-    emits: ['login-realizado'],
-    data() {
-        return {
-            operadores: [],
-            unidadeSelecionada: '',
-            unidadesFabrisList: [],
-            operadorSelecionado: '',
-            tipoEquipamento: '',
-            configKey: 0
-        };
-    },
-    methods: {
-        abrirModalConfig() {
-            this.configKey++;
-            const modal = new window.bootstrap.Modal(document.getElementById('configModal'));
-            modal.show();
-        },
-        async carregarOperadores() {
-            try {
-                let url = 'http://10.1.1.247:3000/operadores';
-                if (this.unidadeSelecionada) {
-                    url += '?unidade=' + encodeURIComponent(this.unidadeSelecionada);
-                }
-                const res = await fetch(url);
-                let data = await res.json();
-                if (data && data.Content) {
-                    try {
-                        data = JSON.parse(data.Content);
-                    } catch (e) {
-                        console.error('Erro ao parsear Content:', e);
-                    }
-                }
-                this.operadores = Array.isArray(data)
-                    ? data.sort((a, b) => a.nome_operador.localeCompare(b.nome_operador, 'pt-BR'))
-                    : [];
-            } catch (e) {
-                console.error('Erro ao buscar operadores:', e);
-            }
-        },
-        carregarTipoEquipamento() {
-            if (this.operadorSelecionado && this.operadorSelecionado.setor) {
-                this.tipoEquipamento = this.operadorSelecionado.setor;
-            }
-        },
-        async carregarUnidadesFabris() {
-            try {
-                const res = await fetch('http://10.1.1.247:3000/unidades-fabrica');
-                const data = await res.json();
-                this.unidadesFabrisList = Array.isArray(data) ? data : [];
-            } catch (e) {
-                this.unidadesFabrisList = [];
-            }
-        },
-        fazerLogin() {
-            if (!this.operadorSelecionado) {
-                alert('Selecione um operador!');
-                return;
-            }
+const operadores = ref([]);
+const unidadeSelecionada = ref('');
+const unidadesFabrisList = ref([]);
+const operadorSelecionado = ref('');
+const tipoEquipamento = ref('');
+const configKey = ref(0);
 
-            const dadosLogin = {
-                operador: this.operadorSelecionado,
-                tipoEquipamento: this.tipoEquipamento,
-                timestamp: new Date().toISOString()
-            };
+const emit = defineEmits(['login-realizado']);
 
-            localStorage.setItem('operadorLogado', JSON.stringify(dadosLogin));
+function abrirModalConfig() {
+  configKey.value++;
+  const modal = new window.bootstrap.Modal(document.getElementById('configModal'));
+  modal.show();
+}
 
-            this.$emit('login-realizado', dadosLogin);
-        }
-    },
-
-    mounted() {
-        this.carregarUnidadesFabris();
-        this.carregarOperadores();
-    },
-    watch: {
-    unidadeSelecionada() {
-        this.operadorSelecionado = '';
-        this.carregarOperadores();
+async function carregarOperadores() {
+  try {
+    let url = 'http://10.1.1.247:3000/operadores';
+    if (unidadeSelecionada.value) {
+      url += '?unidade=' + encodeURIComponent(unidadeSelecionada.value);
     }
-    },
-};
+    const res = await fetch(url);
+    let data = await res.json();
+    if (data && data.Content) {
+      try {
+        data = JSON.parse(data.Content);
+      } catch (e) {
+        console.error('Erro ao parsear Content:', e);
+      }
+    }
+    operadores.value = Array.isArray(data)
+      ? data.sort((a, b) => a.nome_operador.localeCompare(b.nome_operador, 'pt-BR'))
+      : [];
+  } catch (e) {
+    console.error('Erro ao buscar operadores:', e);
+  }
+}
+
+function carregarTipoEquipamento() {
+  if (operadorSelecionado.value && operadorSelecionado.value.setor) {
+    tipoEquipamento.value = operadorSelecionado.value.setor;
+  }
+}
+
+async function carregarUnidadesFabris() {
+  try {
+    const res = await fetch('http://10.1.1.247:3000/unidades-fabrica');
+    const data = await res.json();
+    unidadesFabrisList.value = Array.isArray(data) ? data : [];
+  } catch (e) {
+    unidadesFabrisList.value = [];
+  }
+}
+
+function fazerLogin() {
+  if (!operadorSelecionado.value) {
+    alert('Selecione um operador!');
+    return;
+  }
+
+  const dadosLogin = {
+    operador: operadorSelecionado.value,
+    tipoEquipamento: tipoEquipamento.value,
+    timestamp: new Date().toISOString()
+  };
+
+  localStorage.setItem('operadorLogado', JSON.stringify(dadosLogin));
+  emit('login-realizado', dadosLogin);
+}
+
+onMounted(() => {
+  carregarUnidadesFabris();
+  carregarOperadores();
+});
+
+watch(unidadeSelecionada, () => {
+  operadorSelecionado.value = '';
+  carregarOperadores();
+});
 </script>
 
 <style scoped>
