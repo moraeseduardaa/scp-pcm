@@ -91,102 +91,94 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, onMounted } from 'vue';
 import Parada from './parada.vue';
 
-export default {
-  name: 'ConsultarParadas',
-  components: { Parada },
-  data() {
-    return {
-      paradaKey: Date.now(),
-      paradas: [],
-      filtroUnidade: '',
-      filtroTipo: '',
-      filtroCelula: '',
-      filtroEquipamento: '',
-      filtroMotivo: '',
-      dropdowns: {}
-    };
-  },
-  computed: {
-    paradasFiltradas() {
-      let tipoLogin = '';
-      const operadorLogado = localStorage.getItem('operadorLogado');
-      if (operadorLogado) {
-          try {
-              const dados = JSON.parse(operadorLogado);
-              if (dados.tipoEquipamento) tipoLogin = dados.tipoEquipamento.toUpperCase().trim();
-          } catch (e) { console.log('Erro ao ler operadorLogado:', e); }
-      }
-      console.log('Tipo do operador logado (filtro):', tipoLogin);
-      console.log('Paradas recebidas para filtro:', this.paradas);
-      const resultado = this.paradas.filter(p => {
-          const tipoParada = p.tipo ? p.tipo.toUpperCase().trim() : '';
-          const tipoMatch = tipoLogin ? tipoParada === tipoLogin : true;
-          return tipoMatch &&
-              (this.filtroUnidade === '' || p.unidade === this.filtroUnidade) &&
-              (this.filtroTipo === '' || p.tipo === this.filtroTipo) &&
-              (this.filtroCelula === '' || p.celula === this.filtroCelula) &&
-              (this.filtroEquipamento === '' || p.equipamento_nome === this.filtroEquipamento) &&
-              (this.filtroMotivo === '' || p.motivo === this.filtroMotivo);
-      });
-      console.log('Resultado do filtro com tipoLogin:', resultado);
-      return resultado;
-    },
-    tiposUnicos() {
-      return [...new Set(this.paradas.map(p => p.tipo))].sort();
-    },
-    unidadesUnicas() {
-      return [...new Set(this.paradas.map(p => p.unidade))].sort();
-    },
-    celulasUnicas() {
-      return [...new Set(this.paradas.map(p => p.celula))].sort();
-    },
-    equipamentosUnicos() {
-      return [...new Set(this.paradas.map(p => p.equipamento_nome))].sort();
-    },
-    motivosUnicos() {
-      return [...new Set(this.paradas.map(p => p.motivo))].sort();
-    }
-  },
-  methods: {
-    async carregarParadas() {
-      try {
-        const res = await fetch('http://10.1.1.247:3000/paradas/abertas');
-        const dados = await res.json();
-        this.paradas = Array.isArray(dados) ? dados : [];
-      } catch (err) {
-        console.error('Erro ao carregar paradas abertas:', err);
-      }
-    },
-    toggleDropdown(campo) {
-      this.dropdowns = { [campo]: true };
-    },
-    fecharTodosDropdowns() {
-      this.dropdowns = {};
-    },
-    selecionarFiltro(campo, valor) {
-      this[`filtro${this.capitalize(campo)}`] = valor;
-      this.fecharTodosDropdowns();
-    },
-    capitalize(str) {
-      return str.charAt(0).toUpperCase() + str.slice(1);
-    },
-    abrirModalParada() {
-      if (!this.modalParadaInstance) {
-        this.modalParadaInstance = new bootstrap.Modal(this.$refs.modalParada);
-      }
-      this.paradaKey = Date.now();
-      this.modalParadaInstance.show();
-      this.$refs.modalParada.addEventListener('hidden.bs.modal', this.carregarParadas, { once: true });
-    }
-  },
-  mounted() {
-    this.carregarParadas();
-    this.$root.$on?.('abrir-parada', this.carregarParadas);
+const paradaKey = ref(Date.now());
+const paradas = ref([]);
+const filtroUnidade = ref('');
+const filtroTipo = ref('');
+const filtroCelula = ref('');
+const filtroEquipamento = ref('');
+const filtroMotivo = ref('');
+const dropdowns = ref({});
+const modalParada = ref(null);
+let modalParadaInstance = null;
+
+const paradasFiltradas = computed(() => {
+  let tipoLogin = '';
+  const operadorLogado = localStorage.getItem('operadorLogado');
+  if (operadorLogado) {
+    try {
+      const dados = JSON.parse(operadorLogado);
+      if (dados.tipoEquipamento) tipoLogin = dados.tipoEquipamento.toUpperCase().trim();
+    } catch (e) { console.log('Erro ao ler operadorLogado:', e); }
   }
-};
+  // console.log('Tipo do operador logado (filtro):', tipoLogin);
+  // console.log('Paradas recebidas para filtro:', paradas.value);
+  const resultado = paradas.value.filter(p => {
+    const tipoParada = p.tipo ? p.tipo.toUpperCase().trim() : '';
+    const tipoMatch = tipoLogin ? tipoParada === tipoLogin : true;
+    return tipoMatch &&
+      (filtroUnidade.value === '' || p.unidade === filtroUnidade.value) &&
+      (filtroTipo.value === '' || p.tipo === filtroTipo.value) &&
+      (filtroCelula.value === '' || p.celula === filtroCelula.value) &&
+      (filtroEquipamento.value === '' || p.equipamento_nome === filtroEquipamento.value) &&
+      (filtroMotivo.value === '' || p.motivo === filtroMotivo.value);
+  });
+  // console.log('Resultado do filtro com tipoLogin:', resultado);
+  return resultado;
+});
+
+const tiposUnicos = computed(() => [...new Set(paradas.value.map(p => p.tipo))].sort());
+const unidadesUnicas = computed(() => [...new Set(paradas.value.map(p => p.unidade))].sort());
+const celulasUnicas = computed(() => [...new Set(paradas.value.map(p => p.celula))].sort());
+const equipamentosUnicos = computed(() => [...new Set(paradas.value.map(p => p.equipamento_nome))].sort());
+const motivosUnicos = computed(() => [...new Set(paradas.value.map(p => p.motivo))].sort());
+
+async function carregarParadas() {
+  try {
+    const res = await fetch('http://10.1.1.247:3000/paradas/abertas');
+    const dados = await res.json();
+    paradas.value = Array.isArray(dados) ? dados : [];
+  } catch (err) {
+    console.error('Erro ao carregar paradas abertas:', err);
+  }
+}
+
+function toggleDropdown(campo) {
+  dropdowns.value = { [campo]: true };
+}
+
+function fecharTodosDropdowns() {
+  dropdowns.value = {};
+}
+
+function selecionarFiltro(campo, valor) {
+  if (campo === 'unidade') filtroUnidade.value = valor;
+  if (campo === 'tipo') filtroTipo.value = valor;
+  if (campo === 'celula') filtroCelula.value = valor;
+  if (campo === 'equipamento') filtroEquipamento.value = valor;
+  if (campo === 'motivo') filtroMotivo.value = valor;
+  fecharTodosDropdowns();
+}
+
+function abrirModalParada() {
+  if (!modalParadaInstance) {
+    modalParadaInstance = new bootstrap.Modal(modalParada.value);
+  }
+  paradaKey.value = Date.now();
+  modalParadaInstance.show();
+  modalParada.value.addEventListener('hidden.bs.modal', carregarParadas, { once: true });
+}
+
+onMounted(() => {
+  carregarParadas();
+  if (typeof window !== 'undefined' && window?.$root?.$on) {
+    window.$root.$on('abrir-parada', carregarParadas);
+  }
+});
 </script>
 
 <style>
