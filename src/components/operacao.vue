@@ -22,7 +22,7 @@
     </div>
 
     <div class="d-flex justify-content-between" style="gap: 2%;">
-      <div class="dropdown mt-4" style="width: 100%; position: relative;">
+      <div class="dropdown mt-4" style="width: 100%; position: relative;" ref="dropdownMaquinas">
         <button class="form-control text-start" style="background-color: #343a40; color: #fff;"
           @click="mostrarDropdownMaquinas = !mostrarDropdownMaquinas"
           :disabled="!tipoSelecionado || !celulaSelecionada">
@@ -74,6 +74,7 @@ const celulaSelecionada = ref("");
 const maquinas = ref([]);
 const maquinasSelecionadas = ref([]);
 const mostrarDropdownMaquinas = ref(false);
+const dropdownMaquinas = ref(null);
 const botaoInicioDesabilitado = ref(false);
 const botaoFimDesabilitado = ref(false);
 
@@ -123,7 +124,7 @@ function onAlternarTodosSelecionados(event) {
 }
 
 function onCliqueForaDoDropdown(event) {
-  cliqueForaDoDropdown(event, mostrarDropdownMaquinas, document.body);
+  cliqueForaDoDropdown(event, dropdownMaquinas, (val) => (mostrarDropdownMaquinas.value = val));
 }
 
 async function buscarRegistroAberto(equipamento, dataDia) {
@@ -272,4 +273,5 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', onCliqueForaDoDropdown);
 });
+
 </script>
