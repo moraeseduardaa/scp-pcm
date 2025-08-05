@@ -63,370 +63,277 @@
     </div>
 
     <div class="mt-4 d-flex gap-4">
-      <button class="btn btn-success" @click="enviarInicio" :disabled="botaoInicioDesabilitado">Iniciar Parada</button>
-      <button class="btn btn-danger" @click="enviarFim" :disabled="!paradaAbertaEncontrada">
+      <button class="btn btn-success" @click="enviarParada('inicio')" :disabled="botaoInicioDesabilitado">Iniciar
+        Parada</button>
+      <button class="btn btn-danger" @click="enviarParada('fim')" :disabled="!paradaAbertaEncontrada">
         Terminar Parada
       </button>
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'Horimetro',
-  data() {
-    return {
-      dataHora: this.getLocalDateTime(),
-      tipoSelecionado: '',
-      celulas: [],
-      celulaSelecionada: '',
-      maquinas: [],
-      // maquinaSelecionada removido, não é mais usado
-      maquinasSelecionadas: [],
-      mostrarDropdownMaquinas: false,
-      motivoSelecionado: '',
-      operadorSelecionado: '',
-      botaoInicioDesabilitado: false,
-      paradaAbertaEncontrada: false,
-      formBloqueado: false,
-      motivosParada: [],
-      operadoresTodos: [],
-      operadores: []
-    };
-  },
-  computed: {
-    todosSelecionados() {
-      return this.maquinas.length > 0 && this.maquinasSelecionadas.length === this.maquinas.length;
-    }
-  },
-  watch: {
-    tipoSelecionado(novoTipo) {
-      if (this.formBloqueado) return;
-      this.celulaSelecionada = '';
-      this.celulas = [];
-      this.maquinas = [];
-      this.filtrarOperadoresPorSetor();
-      if (novoTipo) {
-        this.carregarCelulas();
-      }
-    },
-    celulaSelecionada(novaCelula) {
-      if (this.formBloqueado) return;
-      if (this.tipoSelecionado && novaCelula) {
-        this.carregarMaquinas();
-      } else {
-        this.maquinas = [];
-      }
-    },
-    maquinasSelecionadas(novasMaquinas) {
-      this.verificarParadasAbertas(novasMaquinas);
-    }
-  },
 
-  methods: {
-    getLocalDateTime() {
-      const now = new Date();
-      const offset = now.getTimezoneOffset();
-      const local = new Date(now.getTime() - offset * 60000);
-      return local.toISOString().slice(0, 16);
-    },
-    atualizarDataHora() {
-      this.dataHora = this.getLocalDateTime();
-    },
-    formatDate(isoString, timeOnly = false) {
-      if (!isoString) return '';
-      try {
-        const date = new Date(isoString);
-        if (isNaN(date.getTime())) return '';
-        const pad = (n) => String(n).padStart(2, '0');
-        if (timeOnly) {
-          return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-        }
-        return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${String(date.getFullYear()).slice(-2)} - ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-      } catch (e) {
-        console.warn('Erro ao formatar data:', isoString, e);
-        return '';
-      }
-    },
-    carregarCelulas() {
-      const tipoCodigo = this.tipoSelecionado;
-      if (!tipoCodigo) {
-        this.celulas = [];
-        return;
-      }
-      fetch(`http://10.1.1.247:3000/celulas?tipo=${tipoCodigo}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.length && typeof data[0] === 'object' && data[0].celula) {
-            this.celulas = data.map(item => item.celula);
-          } else {
-            this.celulas = data;
-          }
-          const operadorLogado = localStorage.getItem('operadorLogado');
-          if (operadorLogado) {
-            try {
-              const dados = JSON.parse(operadorLogado);
-              if (dados.operador && dados.operador.celula && this.celulas.includes(dados.operador.celula)) {
-                this.celulaSelecionada = dados.operador.celula;
-              }
-            } catch (e) { }
-          }
-        })
-        .catch(err => {
-          console.error('Erro ao buscar células:', err);
-        });
-    },
-    carregarMaquinas() {
-      const tipoCodigo = this.tipoSelecionado;
-      if (!this.celulaSelecionada || !tipoCodigo) {
-        this.maquinas = [];
-        return;
-      }
+<script setup>
+import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue';
+import { useUtils } from '@/composables/MetodosCompartilhados.js';
 
-      const url = `http://10.1.1.247:3000/equipamentos?tipo=${this.tipoSelecionado}&celula=${encodeURIComponent(this.celulaSelecionada)}`;
+const {
+  getLocalDateTime,
+  atualizarDataHora,
+  carregarCelulas,
+  carregarMaquinas,
+  cliqueForaDoDropdown,
+  carregarDadosOperadorLogado,
+} = useUtils();
 
-      fetch(url)
+const dataHora = ref(getLocalDateTime());
+const tipoSelecionado = ref('');
+const celulaSelecionada = ref('');
+const maquinasSelecionadas = ref([]);
+const mostrarDropdownMaquinas = ref(false);
+const dropdownMaquinas = ref(null);
+const motivoSelecionado = ref('');
+const operadorSelecionado = ref('');
+const motivosParada = ref([]);
+const celulas = ref([]);
+const maquinas = ref([]);
+const formBloqueado = ref(false);
+const botaoInicioDesabilitado = ref(false);
+const paradaAbertaEncontrada = ref(false);
+
+const ApiJson = async (url) => {
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.warn(`Erro ao buscar ${url}:`, e);
+    return null;
+  }
+};
+
+const carregarMotivosParada = async () => {
+  const data = await ApiJson('http://10.1.1.247:3000/motivos-parada');
+  motivosParada.value = Array.isArray(data)
+    ? data
+      .map(item => typeof item === 'string' ? item : item.motivo)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    : [];
+};
+
+const cliqueFora = (event) => {
+  cliqueForaDoDropdown(event, dropdownMaquinas, (val) => (mostrarDropdownMaquinas.value = val));
+};
+
+const todosSelecionados = computed(() =>
+  maquinas.value.length > 0 && maquinasSelecionadas.value.length === maquinas.value.length
+);
+
+const alternarTodosSelecionados = (event) => {
+  maquinasSelecionadas.value = event.target.checked
+    ? maquinas.value.map(m => m.id)
+    : [];
+};
+
+watch([tipoSelecionado, celulaSelecionada], ([novoTipo, novaCelula], [oldTipo, oldCelula]) => {
+  if (novoTipo) {
+    carregarCelulas(tipoSelecionado, celulas, celulaSelecionada);
+  } else {
+    celulas.value = [];
+    celulaSelecionada.value = '';
+  }
+
+  if (novoTipo && novaCelula) {
+    carregarMaquinas(tipoSelecionado, celulaSelecionada, maquinas);
+  } else {
+    maquinas.value = [];
+  }
+});
+
+async function enviarParada(acao) {
+  if (!maquinasSelecionadas.value.length) {
+    alert('Selecione um ou mais equipamentos');
+    return;
+  }
+
+  function resetarFormulario() {
+    maquinasSelecionadas.value = [];
+    motivoSelecionado.value = '';
+    operadorSelecionado.value = '';
+    formBloqueado.value = false;
+    botaoInicioDesabilitado.value = false;
+    paradaAbertaEncontrada.value = false;
+    mostrarDropdownMaquinas.value = false;
+    atualizarDataHora(dataHora);
+  }
+
+  async function enviarParaEquipamentos(url, corpoBase, maquinas) {
+    let erros = [];
+
+    const promises = maquinas.map(equipamento => {
+      const corpo = { ...corpoBase, equipamento };
+
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo),
+      })
         .then(res => {
           if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
+            return res.text().then(text => {
+              throw new Error(text || `Erro ao enviar dados para o equipamento ${equipamento}`);
+            });
           }
-          return res.json();
-        })
-        .then(data => {
-          this.maquinas = data
-            .map(item => ({
-              id: item.codigo,
-              nome: item.descricao
-            }))
-            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
         })
         .catch(err => {
-          console.error('Erro ao buscar máquinas:', err);
+          erros.push(err.message || `Erro no equipamento ${equipamento}`);
         });
-    },
-    async carregarOperadores() {
-      try {
-        const res = await fetch('http://10.1.1.247:3000/operadores');
-        let data = await res.json();
-        if (data && data.Content) {
-          try {
-            data = JSON.parse(data.Content);
-          } catch (e) { }
-        }
-        this.operadoresTodos = Array.isArray(data) ? data : [];
-        this.filtrarOperadoresPorSetor();
-      } catch (e) {
-        this.operadoresTodos = [];
-        this.operadores = [];
-      }
-    },
-    filtrarOperadoresPorSetor() {
-      if (!this.tipoSelecionado) {
-        this.operadores = this.operadoresTodos.map(op => op.nome_operador).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-        return;
-      }
-      let setor = '';
-      if (this.tipoSelecionado == 3) setor = 'JACQUARD';
-      else if (this.tipoSelecionado == 1) setor = 'AGULHA';
-      else if (this.tipoSelecionado == 2) setor = 'CROCHE';
-      this.operadores = this.operadoresTodos
-        .filter(op => op.setor && op.setor.toUpperCase() === setor)
-        .map(op => op.nome_operador)
-        .sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    },
-    alternarTodosSelecionados() {
-      if (this.todosSelecionados) {
-        this.maquinasSelecionadas = [];
-      } else {
-        this.maquinasSelecionadas = this.maquinas.map(m => m.id);
-      }
-    },
-    async carregarMotivosParada() {
-      try {
-        const res = await fetch('http://10.1.1.247:3000/motivos-parada');
-        const data = await res.json();
-        this.motivosParada = Array.isArray(data)
-          ? data.map(item => typeof item === 'string' ? item : item.motivo)
-            .sort((a, b) => a.localeCompare(b, 'pt-BR'))
-          : [];
-      } catch (e) {
-        this.motivosParada = [];
-      }
-    },
-    async enviarInicio() {
-      if (!this.maquinasSelecionadas.length) {
-        alert('Selecione uma ou mais máquinas');
-        return;
-      }
+    });
 
-      if (!this.motivoSelecionado || this.motivoSelecionado.trim() === '') {
-        alert('Selecione ou digite um motivo');
-        return;
-      }
-
-      if (!this.operadorSelecionado || this.operadorSelecionado.trim() === '') {
-        alert('Informe o nome do operador');
-        return;
-      }
-
-      let erros = [];
-      const promises = this.maquinasSelecionadas.map(equipamento => {
-        return fetch('http://10.1.1.247:3000/parada/inicio', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            equipamento,
-            motivo: this.motivoSelecionado,
-            datahora_inicio_parada: this.dataHora,
-            operador: this.operadorSelecionado
-          })
-        })
-          .then(res => {
-            if (!res.ok) {
-              return res.text().then(text => {
-                throw new Error(text || `Erro ao registrar parada para o equipamento ${equipamento}`);
-              });
-            }
-          })
-          .catch(err => {
-            erros.push(err.message || `Erro no equipamento ${equipamento}`);
-          });
-      });
-
-      Promise.all(promises).then(() => {
-        if (erros.length === 0) {
-          alert('Início da parada registrado com sucesso!');
-        } else {
-          alert(`Alguns erros ocorreram:\n${erros.join('\n')}`);
-        }
-
-        this.maquinasSelecionadas = [];
-        this.motivoSelecionado = '';
-        this.atualizarDataHora();
-      });
-    },
-    async verificarParadasAbertas(maquinas) {
-      this.formBloqueado = false;
-      this.botaoInicioDesabilitado = false;
-      this.paradaAbertaEncontrada = false;
-      if (!maquinas || !maquinas.length) return;
-      let abertas = [];
-      let paradasAbertasInfo = [];
-      for (const maquinaId of maquinas) {
-        try {
-          const response = await fetch(`http://10.1.1.247:3000/parada/aberta/${maquinaId}`);
-          if (response.status === 200) {
-            const parada = await response.json();
-            abertas.push(maquinaId);
-            paradasAbertasInfo.push({ maquinaId, ...parada });
-          }
-        } catch (err) {
-        }
-      }
-      if (abertas.length > 0) {
-        this.paradaAbertaEncontrada = true;
-        const parada = paradasAbertasInfo[0];
-        this.motivoSelecionado = parada.motivo;
-        this.operadorSelecionado = parada.operador;
-        this.dataHora = this.getLocalDateTime();
-        this.formBloqueado = abertas.length === maquinas.length;
-        this.botaoInicioDesabilitado = abertas.length === maquinas.length;
-        this.mostrarDropdownMaquinas = false;
-
-        // Se todas as máquinas selecionadas estão abertas e o motivo e operador são iguais, mostra um alert só
-        if (
-          abertas.length === maquinas.length &&
-          paradasAbertasInfo.every(info => info.motivo === paradasAbertasInfo[0].motivo && info.operador === paradasAbertasInfo[0].operador)
-        ) {
-          alert(`Já existe uma parada aberta para todas as máquinas selecionadas.\n\nMotivo: ${paradasAbertasInfo[0].motivo}\nOperador: ${paradasAbertasInfo[0].operador}`);
-        } else {
-          paradasAbertasInfo.forEach(info => {
-            alert(`Já existe uma parada aberta para esta máquina.\n\nMotivo: ${info.motivo}\nOperador: ${info.operador}`);
-          });
-        }
-      } else {
-        this.formBloqueado = false;
-        this.botaoInicioDesabilitado = false;
-        this.paradaAbertaEncontrada = false;
-      }
-    },
-    async enviarFim() {
-      if (!this.maquinasSelecionadas.length) {
-        alert('Selecione uma ou mais máquinas');
-        return;
-      }
-
-      let erros = [];
-      const promises = this.maquinasSelecionadas.map(equipamento => {
-        return fetch('http://10.1.1.247:3000/parada/fim', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            equipamento,
-            datahora_fim_parada: this.dataHora,
-            operador: this.operadorSelecionado || ''
-          })
-        })
-          .then(res => {
-            if (!res.ok) {
-              return res.text().then(text => {
-                throw new Error(text || `Erro ao registrar término da parada para o equipamento ${equipamento}`);
-              });
-            }
-          })
-          .catch(err => {
-            erros.push(err.message || `Erro no equipamento ${equipamento}`);
-          });
-      });
-
-      Promise.all(promises).then(() => {
-        if (erros.length === 0) {
-          alert('Término da parada registrado com sucesso!');
-        } else {
-          const unicos = [...new Set(erros)];
-          alert(`Alguns erros ocorreram:\n${unicos.join('\n')}`);
-        }
-
-        this.maquinasSelecionadas = [];
-        this.motivoSelecionado = '';
-        this.formBloqueado = false;
-        this.botaoInicioDesabilitado = false;
-        this.atualizarDataHora();
-      });
-    },
-    cliqueForaDoDropdown(event) {
-      if (this.mostrarDropdownMaquinas) {
-        const dropdown = this.$refs.dropdownMaquinas;
-        if (dropdown && !dropdown.contains(event.target)) {
-          this.mostrarDropdownMaquinas = false;
-        }
-      }
-    }
-  },
-  mounted() {
-    this.carregarMotivosParada();
-    this.carregarOperadores();
-    const operadorLogado = localStorage.getItem('operadorLogado');
-    if (operadorLogado) {
-      try {
-        const dados = JSON.parse(operadorLogado);
-        if (dados.tipoEquipamento) {
-          if (dados.tipoEquipamento.toUpperCase() === 'JACQUARD') this.tipoSelecionado = 3;
-          else if (dados.tipoEquipamento.toUpperCase() === 'AGULHA') this.tipoSelecionado = 1;
-          else if (dados.tipoEquipamento.toUpperCase() === 'CROCHE') this.tipoSelecionado = 2;
-        }
-        if (dados.operador && dados.operador.celula) {
-          this.celulaSelecionada = dados.operador.celula;
-        }
-        if (dados.operador && dados.operador.nome_operador) {
-          this.operadorSelecionado = dados.operador.nome_operador;
-        }
-      } catch (e) { }
-    }
-    document.addEventListener('mousedown', this.cliqueForaDoDropdown);
-  },
-  beforeDestroy() {
-    document.removeEventListener('mousedown', this.cliqueForaDoDropdown);
+    await Promise.all(promises);
+    return erros;
   }
-}
+
+  function exibirAlertasParadaAberta(paradas) {
+    if (
+      paradas.length === 1 &&
+      paradas[0].motivo &&
+      paradas[0].operador
+    ) {
+      alert(`Já existe uma parada aberta para o equipamento:\n"${paradas[0].nome_equipamento}".\n\nMotivo: ${paradas[0].motivo}\nOperador: ${paradas[0].operador}`);
+    } else if (paradas.length > 1) {
+      const listaEquipamentos = paradas
+        .map(p => `• ${p.nome_equipamento} — Motivo: ${p.motivo}`)
+        .join('\n\n');
+      alert(`Já existe parada aberta para os seguintes equipamentos:\n\n${listaEquipamentos}`);
+    }
+  }
+
+  if (acao === 'inicio') {
+    if (!motivoSelecionado.value?.trim()) {
+      alert('Selecione um motivo');
+      return;
+    }
+
+    let maquinasComParada = [];
+    let maquinasSemParada = [];
+    let paradasAbertasInfo = [];
+
+    for (const maquinaId of maquinasSelecionadas.value) {
+      try {
+        const response = await fetch(`http://10.1.1.247:3000/parada/aberta/${maquinaId}`);
+        if (response.status === 200) {
+          const parada = await response.json();
+          const maquinaEncontrada = maquinas.value.find(m => m.id === maquinaId);
+
+          paradasAbertasInfo.push({
+            maquinaId,
+            nome_equipamento: maquinaEncontrada?.nome || `ID ${maquinaId}`,
+            ...parada
+          });
+
+          maquinasComParada.push(maquinaId);
+        } else {
+          maquinasSemParada.push(maquinaId);
+        }
+      } catch (err) {
+        maquinasSemParada.push(maquinaId);
+      }
+    }
+    if (
+      maquinasSelecionadas.value.length > 1 &&
+      maquinasComParada.length === maquinasSelecionadas.value.length &&
+      paradasAbertasInfo.length === maquinasSelecionadas.value.length &&
+      paradasAbertasInfo.every(
+        info => info.motivo === paradasAbertasInfo[0].motivo && info.operador === paradasAbertasInfo[0].operador
+      )
+    ) {
+      paradaAbertaEncontrada.value = true;
+      motivoSelecionado.value = paradasAbertasInfo[0].motivo || '';
+      operadorSelecionado.value = paradasAbertasInfo[0].operador || operadorSelecionado.value || '';
+      dataHora.value = getLocalDateTime();
+      formBloqueado.value = false;
+      botaoInicioDesabilitado.value = false;
+      mostrarDropdownMaquinas.value = false;
+      exibirAlertasParadaAberta(paradasAbertasInfo);
+      return;
+    }
+
+    if (maquinasSelecionadas.value.length === 1 && maquinasComParada.length === 1) {
+      paradaAbertaEncontrada.value = true;
+      const parada = paradasAbertasInfo[0];
+      motivoSelecionado.value = parada.motivo || '';
+      operadorSelecionado.value = parada.operador || operadorSelecionado.value || '';
+      dataHora.value = getLocalDateTime();
+      formBloqueado.value = true;
+      botaoInicioDesabilitado.value = true;
+      mostrarDropdownMaquinas.value = false;
+      exibirAlertasParadaAberta(paradasAbertasInfo);
+      return;
+    }
+
+    if (maquinasSelecionadas.value.length > 1 && maquinasComParada.length > 0) {
+      exibirAlertasParadaAberta(paradasAbertasInfo);
+    }
+
+    if (maquinasSemParada.length === 0) return;
+
+    if (!operadorSelecionado.value) {
+      await carregarDadosOperadorLogado(tipoSelecionado, celulaSelecionada, operadorSelecionado);
+    }
+
+    const erros = await enviarParaEquipamentos('http://10.1.1.247:3000/parada/inicio', {
+      motivo: motivoSelecionado.value,
+      datahora_inicio_parada: dataHora.value,
+      operador: operadorSelecionado.value,
+    }, maquinasSemParada);
+
+    if (erros.length === 0) {
+      alert(`Início da parada registrado com sucesso para ${maquinasSemParada.length} equipamento(s)!`);
+    } else {
+      alert(`Alguns erros ocorreram:\n${[...new Set(erros)].join('\n')}`);
+    }
+
+    resetarFormulario();
+    return;
+  }
+
+  if (acao === 'fim') {
+    if (!paradaAbertaEncontrada.value) {
+      alert('Não há parada aberta para os equipamentos selecionados.');
+      return;
+    }
+
+    const erros = await enviarParaEquipamentos('http://10.1.1.247:3000/parada/fim', {
+      datahora_fim_parada: dataHora.value,
+      operador: operadorSelecionado.value || '',
+    }, maquinasSelecionadas.value);
+
+    if (erros.length === 0) {
+      alert('Término da parada registrado com sucesso!');
+    } else {
+      const unicos = [...new Set(erros)];
+      alert(`Alguns erros ocorreram:\n${unicos.join('\n')}`);
+    }
+
+    resetarFormulario();
+    return;
+  }
+};
+
+onMounted(async () => {
+  carregarDadosOperadorLogado(tipoSelecionado, celulaSelecionada, operadorSelecionado);
+  if (tipoSelecionado.value) {
+    await carregarCelulas(tipoSelecionado, celulas, celulaSelecionada);
+  }
+  if (tipoSelecionado.value && celulaSelecionada.value) {
+    await carregarMaquinas(tipoSelecionado, celulaSelecionada, maquinas);
+  }
+  await carregarMotivosParada();
+  document.addEventListener('mousedown', cliqueFora);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', cliqueFora);
+});
 </script>
