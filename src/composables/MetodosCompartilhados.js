@@ -114,11 +114,21 @@ export function useUtils() {
     }
   };
 
-  const cliqueForaDoDropdown = (event, dropdownElement, setMostrarDropdown) => {
-    let el = dropdownElement;
-    if (typeof dropdownElement === "string") {
-      el = document.querySelector(dropdownElement);
+  const cliqueForaDoDropdown = (
+    event,
+    dropdownElementOrRef,
+    setMostrarDropdown
+  ) => {
+    let el;
+
+    if (dropdownElementOrRef?.value instanceof HTMLElement) {
+      el = dropdownElementOrRef.value;
+    } else if (typeof dropdownElementOrRef === "string") {
+      el = document.querySelector(dropdownElementOrRef);
+    } else if (dropdownElementOrRef instanceof HTMLElement) {
+      el = dropdownElementOrRef;
     }
+
     if (el && typeof el.contains === "function" && !el.contains(event.target)) {
       setMostrarDropdown(false);
     }
