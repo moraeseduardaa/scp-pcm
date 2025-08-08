@@ -7,7 +7,7 @@ export function useUtils() {
     const local = new Date(now.getTime() - offset * 60000);
     return local.toISOString().slice(0, 16);
   };
-
+  
   const atualizarDataHora = (dataHoraRef) => {
     dataHoraRef.value = getLocalDateTime();
   };
@@ -45,7 +45,7 @@ export function useUtils() {
 
     try {
       const res = await fetch(
-        `http://10.1.1.247:3000/celulas?tipo=${tipoCodigo}`
+        `http://10.1.1.11:3000/celulas?tipo=${tipoCodigo}`
       );
       const data = await res.json();
 
@@ -86,7 +86,7 @@ export function useUtils() {
 
     try {
       const res = await fetch(
-        `http://10.1.1.247:3000/equipamentos?tipo=${tipo}&celula=${encodeURIComponent(
+        `http://10.1.1.11:3000/equipamentos?tipo=${tipo}&celula=${encodeURIComponent(
           celula
         )}`
       );
@@ -158,6 +158,17 @@ export function useUtils() {
     } catch (e) {}
   };
 
+  function getDataReferenciaTurno(dataHoraStr, limiteHora = 4) {
+    if (!dataHoraStr) return "";
+    const data = new Date(dataHoraStr);
+    if (isNaN(data.getTime())) return "";
+    const hora = data.getHours();
+    if (hora < limiteHora) {
+      data.setDate(data.getDate() - 1);
+    }
+    return data.toISOString().slice(0, 10);
+  }
+
   return {
     getLocalDateTime,
     atualizarDataHora,
@@ -167,5 +178,6 @@ export function useUtils() {
     alternarTodosSelecionados,
     cliqueForaDoDropdown,
     carregarDadosOperadorLogado,
+    getDataReferenciaTurno,
   };
 }
