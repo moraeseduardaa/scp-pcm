@@ -81,7 +81,7 @@ function abrirModalConfig() {
 
 async function carregarOperadores() {
   try {
-    let url = 'http://10.1.1.247:3000/operadores';
+    let url = 'http://10.1.1.11:3000/operadores';
     if (unidadeSelecionada.value) {
       url += '?unidade=' + encodeURIComponent(unidadeSelecionada.value);
     }
@@ -110,7 +110,7 @@ function carregarTipoEquipamento() {
 
 async function carregarUnidadesFabris() {
   try {
-    const res = await fetch('http://10.1.1.247:3000/unidades-fabrica');
+    const res = await fetch('http://10.1.1.11:3000/unidades-fabrica');
     const data = await res.json();
     unidadesFabrisList.value = Array.isArray(data) ? data : [];
   } catch (e) {
