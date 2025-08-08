@@ -109,7 +109,7 @@ function enviarHorimetro() {
       horimetro: horimetroValue.value,
       periodo: periodoSelecionado.value
     };
-    return fetch('http://10.1.1.247:3000/horimetro', {
+    return fetch('http://10.1.1.11:3000/horimetro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
