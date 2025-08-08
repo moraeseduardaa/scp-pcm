@@ -139,7 +139,7 @@ const motivosUnicos = computed(() => [...new Set(paradas.value.map(p => p.motivo
 
 async function carregarParadas() {
   try {
-    const res = await fetch('http://10.1.1.247:3000/paradas/abertas');
+    const res = await fetch('http://10.1.1.11:3000/paradas/abertas');
     const dados = await res.json();
     paradas.value = Array.isArray(dados) ? dados : [];
   } catch (err) {
