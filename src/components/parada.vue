@@ -63,15 +63,11 @@
     </div>
 
     <div class="mt-4 d-flex gap-4">
-      <button class="btn btn-success" @click="enviarParada('inicio')" :disabled="botaoInicioDesabilitado">Iniciar
-        Parada</button>
-      <button class="btn btn-danger" @click="enviarParada('fim')" :disabled="!paradaAbertaEncontrada">
-        Terminar Parada
-      </button>
+      <button class="btn btn-success" @click="enviarParada('inicio')">Iniciar Parada</button>
+      <button class="btn btn-danger" @click="enviarParada('fim')">Terminar Parada</button>
     </div>
   </div>
 </template>
-
 
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue';
@@ -84,6 +80,7 @@ const {
   carregarMaquinas,
   cliqueForaDoDropdown,
   carregarDadosOperadorLogado,
+  getDataReferenciaTurno,
 } = useUtils();
 
 const dataHora = ref(getLocalDateTime());
@@ -99,7 +96,7 @@ const celulas = ref([]);
 const maquinas = ref([]);
 const formBloqueado = ref(false);
 const botaoInicioDesabilitado = ref(false);
-const paradaAbertaEncontrada = ref(false);
+const paradaAbertaEncontrada = ref(true);
 
 const ApiJson = async (url) => {
   try {
@@ -113,7 +110,7 @@ const ApiJson = async (url) => {
 };
 
 const carregarMotivosParada = async () => {
-  const data = await ApiJson('http://10.1.1.247:3000/motivos-parada');
+  const data = await ApiJson('http://10.1.1.11:3000/motivos-parada');
   motivosParada.value = Array.isArray(data)
     ? data
       .map(item => typeof item === 'string' ? item : item.motivo)
@@ -142,7 +139,6 @@ watch([tipoSelecionado, celulaSelecionada], ([novoTipo, novaCelula], [oldTipo, o
     celulas.value = [];
     celulaSelecionada.value = '';
   }
-
   if (novoTipo && novaCelula) {
     carregarMaquinas(tipoSelecionado, celulaSelecionada, maquinas);
   } else {
@@ -154,6 +150,35 @@ async function enviarParada(acao) {
   if (!maquinasSelecionadas.value.length) {
     alert('Selecione um ou mais equipamentos');
     return;
+  }
+
+  const dataReferenciaTurno = getDataReferenciaTurno(dataHora.value);
+
+  async function buscarParadasAbertas(maquinas, dataReferencia) {
+    let maquinasComParada = [];
+    let maquinasSemParada = [];
+    let paradasAbertasInfo = [];
+
+    for (const maquinaId of maquinas) {
+      try {
+        const res = await fetch(`http://10.1.1.11:3000/parada/aberta/${maquinaId}?data=${dataReferencia}`);
+        if (res.status === 200) {
+          const parada = await res.json();
+          const maquinaEncontrada = maquinas.value.find(m => m.id === maquinaId);
+          paradasAbertasInfo.push({
+            maquinaId,
+            nome_equipamento: maquinaEncontrada?.nome || `ID ${maquinaId}`,
+            ...parada
+          });
+          maquinasComParada.push(maquinaId);
+        } else {
+          maquinasSemParada.push(maquinaId);
+        }
+      } catch {
+        maquinasComParada.push(maquinaId);
+      }
+    }
+    return { maquinasComParada, maquinasSemParada, paradasAbertasInfo };
   }
 
   function resetarFormulario() {
@@ -169,10 +194,8 @@ async function enviarParada(acao) {
 
   async function enviarParaEquipamentos(url, corpoBase, maquinas) {
     let erros = [];
-
     const promises = maquinas.map(equipamento => {
       const corpo = { ...corpoBase, equipamento };
-
       return fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,17 +212,12 @@ async function enviarParada(acao) {
           erros.push(err.message || `Erro no equipamento ${equipamento}`);
         });
     });
-
     await Promise.all(promises);
     return erros;
   }
 
   function exibirAlertasParadaAberta(paradas) {
-    if (
-      paradas.length === 1 &&
-      paradas[0].motivo &&
-      paradas[0].operador
-    ) {
+    if (paradas.length === 1 && paradas[0].motivo && paradas[0].operador) {
       alert(`Já existe uma parada aberta para o equipamento:\n"${paradas[0].nome_equipamento}".\n\nMotivo: ${paradas[0].motivo}\nOperador: ${paradas[0].operador}`);
     } else if (paradas.length > 1) {
       const listaEquipamentos = paradas
@@ -208,38 +226,16 @@ async function enviarParada(acao) {
       alert(`Já existe parada aberta para os seguintes equipamentos:\n\n${listaEquipamentos}`);
     }
   }
-
+  
   if (acao === 'inicio') {
     if (!motivoSelecionado.value?.trim()) {
       alert('Selecione um motivo');
       return;
     }
 
-    let maquinasComParada = [];
-    let maquinasSemParada = [];
-    let paradasAbertasInfo = [];
+    const { maquinasComParada, maquinasSemParada, paradasAbertasInfo } =
+      await buscarParadasAbertas(maquinasSelecionadas.value, dataReferenciaTurno);
 
-    for (const maquinaId of maquinasSelecionadas.value) {
-      try {
-        const response = await fetch(`http://10.1.1.247:3000/parada/aberta/${maquinaId}`);
-        if (response.status === 200) {
-          const parada = await response.json();
-          const maquinaEncontrada = maquinas.value.find(m => m.id === maquinaId);
-
-          paradasAbertasInfo.push({
-            maquinaId,
-            nome_equipamento: maquinaEncontrada?.nome || `ID ${maquinaId}`,
-            ...parada
-          });
-
-          maquinasComParada.push(maquinaId);
-        } else {
-          maquinasSemParada.push(maquinaId);
-        }
-      } catch (err) {
-        maquinasSemParada.push(maquinaId);
-      }
-    }
     if (
       maquinasSelecionadas.value.length > 1 &&
       maquinasComParada.length === maquinasSelecionadas.value.length &&
@@ -258,7 +254,6 @@ async function enviarParada(acao) {
       exibirAlertasParadaAberta(paradasAbertasInfo);
       return;
     }
-
     if (maquinasSelecionadas.value.length === 1 && maquinasComParada.length === 1) {
       paradaAbertaEncontrada.value = true;
       const parada = paradasAbertasInfo[0];
@@ -271,18 +266,18 @@ async function enviarParada(acao) {
       exibirAlertasParadaAberta(paradasAbertasInfo);
       return;
     }
-
     if (maquinasSelecionadas.value.length > 1 && maquinasComParada.length > 0) {
       exibirAlertasParadaAberta(paradasAbertasInfo);
     }
-
-    if (maquinasSemParada.length === 0) return;
-
+    if (maquinasSemParada.length === 0) {
+      alert('Todas as máquinas selecionadas já possuem parada aberta. Não é possível iniciar nova parada.');
+      return;
+    }
     if (!operadorSelecionado.value) {
       await carregarDadosOperadorLogado(tipoSelecionado, celulaSelecionada, operadorSelecionado);
     }
 
-    const erros = await enviarParaEquipamentos('http://10.1.1.247:3000/parada/inicio', {
+    const erros = await enviarParaEquipamentos('http://10.1.1.11:3000/parada/inicio', {
       motivo: motivoSelecionado.value,
       datahora_inicio_parada: dataHora.value,
       operador: operadorSelecionado.value,
@@ -293,33 +288,37 @@ async function enviarParada(acao) {
     } else {
       alert(`Alguns erros ocorreram:\n${[...new Set(erros)].join('\n')}`);
     }
-
     resetarFormulario();
     return;
   }
 
   if (acao === 'fim') {
-    if (!paradaAbertaEncontrada.value) {
+    const { maquinasComParada, paradasAbertasInfo } =
+      await buscarParadasAbertas(maquinasSelecionadas.value, dataReferenciaTurno);
+    if (maquinasComParada.length === 0) {
       alert('Não há parada aberta para os equipamentos selecionados.');
       return;
     }
 
-    const erros = await enviarParaEquipamentos('http://10.1.1.247:3000/parada/fim', {
+    paradaAbertaEncontrada.value = true;
+    if (paradasAbertasInfo.length === 1) {
+      motivoSelecionado.value = paradasAbertasInfo[0].motivo || '';
+      operadorSelecionado.value = paradasAbertasInfo[0].operador || operadorSelecionado.value || '';
+    }
+    const erros = await enviarParaEquipamentos('http://10.1.1.11:3000/parada/fim', {
       datahora_fim_parada: dataHora.value,
       operador: operadorSelecionado.value || '',
-    }, maquinasSelecionadas.value);
-
+    }, maquinasComParada);
     if (erros.length === 0) {
       alert('Término da parada registrado com sucesso!');
     } else {
       const unicos = [...new Set(erros)];
       alert(`Alguns erros ocorreram:\n${unicos.join('\n')}`);
     }
-
     resetarFormulario();
     return;
   }
-};
+}
 
 onMounted(async () => {
   carregarDadosOperadorLogado(tipoSelecionado, celulaSelecionada, operadorSelecionado);
@@ -336,4 +335,5 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', cliqueFora);
 });
+
 </script>
