@@ -87,6 +87,7 @@ const {
   alternarTodosSelecionados,
   cliqueForaDoDropdown,
   carregarDadosOperadorLogado,
+  getDataReferenciaTurno,
 } = useUtils();
 
 dataHora.value = getLocalDateTime();
@@ -130,7 +131,7 @@ function onCliqueForaDoDropdown(event) {
 async function buscarRegistroAberto(equipamento, dataDia) {
   try {
     const res = await fetch(
-      `http://10.1.1.247:3000/horimetro/aberto/${equipamento}?data=${dataDia}`
+      `http://10.1.1.11:3000/horimetro/aberto/${equipamento}?data=${dataDia}`
     );
     if (res.ok && res.status !== 204) return await res.json();
   } catch (_) { }
@@ -166,6 +167,8 @@ async function enviarRequisicao(url, metodo, payload) {
   }
 }
 
+
+
 async function registrarOperacao(tipo) {
   if (!maquinasSelecionadas.value.length) {
     alert("Selecione uma ou mais máquinas");
@@ -173,14 +176,14 @@ async function registrarOperacao(tipo) {
   }
 
   const hora = dataHora.value;
-  const url = `http://10.1.1.247:3000/operacao/${tipo}`;
+  const url = `http://10.1.1.11:3000/operacao/${tipo}`;
   const erros = [];
   let jaAbertoCount = 0;
   let nenhumParaEncerrarCount = 0;
 
   const promises = maquinasSelecionadas.value.map(async (equipamento) => {
+    const dataDia = getDataReferenciaTurno(hora);
     if (tipo === "inicio") {
-      const dataDia = hora.slice(0, 10);
       const registro = await buscarRegistroAberto(equipamento, dataDia);
       if (
         registro &&
@@ -193,7 +196,7 @@ async function registrarOperacao(tipo) {
       }
     }
     try {
-      await enviarRequisicao(url, "POST", { equipamento, hora });
+      await enviarRequisicao(url, "POST", { equipamento, hora, data: dataDia });
     } catch (e) {
       if (e === "__JA_ABERTO__" && tipo === "inicio") {
         jaAbertoCount++;
@@ -243,7 +246,7 @@ async function verificarOperacaoAberta() {
     return;
   }
 
-  const dataDia = dataHora.value.slice(0, 10);
+  const dataDia = getDataReferenciaTurno(dataHora.value);
   const registro = await buscarRegistroAberto(equipamento, dataDia);
   const { ini_1t = null, fim_1t = null, ini_2t = null, fim_2t = null } = registro || {};
 
