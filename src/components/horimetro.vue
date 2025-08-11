@@ -52,7 +52,7 @@
 import { ref, watch, onMounted } from 'vue';
 import { useUtils } from '@/composables/MetodosCompartilhados.js';
 
-const { getLocalDateTime, formatDate, carregarCelulas, carregarMaquinas, carregarDadosOperadorLogado } = useUtils();
+const { getLocalDateTime, formatDate, carregarCelulas, carregarMaquinas, carregarDadosOperadorLogado, getDataReferenciaTurno } = useUtils();
 
 const dataHora = ref(getLocalDateTime());
 const tipoSelecionado = ref(null); 
@@ -98,14 +98,11 @@ function enviarHorimetro() {
   let erros = [];
   const promises = equipamentos.map(equipamento => {
     const dataHoraEnvio = new Date(dataHora.value);
-    const dataBusca = new Date(dataHoraEnvio);
-    if (periodoSelecionado.value === 'FIM DO 2° TURNO') {
-      dataBusca.setDate(dataBusca.getDate() - 1);
-    }
+    const dataBusca = getDataReferenciaTurno(dataHoraEnvio);
     const payload = {
       equipamento,
       dataHora: new Date(dataHoraEnvio.getTime() - (dataHoraEnvio.getTimezoneOffset() * 60000)).toISOString(),
-      dataBusca: dataBusca.toISOString().split('T')[0],
+      dataBusca,
       horimetro: horimetroValue.value,
       periodo: periodoSelecionado.value
     };
@@ -140,5 +137,4 @@ function enviarHorimetro() {
 onMounted(() => {
   carregarDadosOperadorLogado(tipoSelecionado, celulaSelecionada, operadorSelecionado);
 });
-
 </script>
