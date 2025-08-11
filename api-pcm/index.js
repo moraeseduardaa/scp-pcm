@@ -157,7 +157,7 @@ app.get("/operacao/aberta/:equipamento", async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `SELECT * FROM horimetro WHERE equipamento = $1 AND data = $2 AND (ini_1t IS NOT NULL OR ini_2t IS NOT NULL) AND (fim_1t IS NULL OR fim_2t IS NULL) LIMIT 1`,
+      `SELECT * FROM horimetro WHERE equipamento = $1 AND CAST(ini_1t AS DATE) = $2 AND (ini_1t IS NOT NULL OR ini_2t IS NOT NULL) AND (fim_1t IS NULL OR fim_2t IS NULL) LIMIT 1`,
       [equipamento, data]
     );
     if (result.rows.length > 0) {
@@ -197,14 +197,28 @@ app.get("/paradas/abertas", async (req, res) => {
 
 app.get("/parada/aberta/:equipamento", async (req, res) => {
   const equipamento = req.params.equipamento;
+  const data = req.query.data; 
   try {
-    const result = await pool.query(
-      `SELECT motivo, operador, datahora_inicio_parada 
-       FROM paradas_equipamentos 
-       WHERE equipamento = $1 AND datahora_fim_parada IS NULL 
-       LIMIT 1`,
-      [equipamento]
-    );
+    let result;
+    if (data) {
+      result = await pool.query(
+        `SELECT motivo, operador, datahora_inicio_parada 
+         FROM paradas_equipamentos 
+         WHERE equipamento = $1 
+           AND datahora_fim_parada IS NULL
+           AND CAST(datahora_inicio_parada AS DATE) = $2
+         LIMIT 1`,
+        [equipamento, data]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT motivo, operador, datahora_inicio_parada 
+         FROM paradas_equipamentos 
+         WHERE equipamento = $1 AND datahora_fim_parada IS NULL 
+         LIMIT 1`,
+        [equipamento]
+      );
+    }
     if (result.rows.length > 0) {
       res.json(result.rows[0]);
     } else {
@@ -252,32 +266,32 @@ app.post("/horimetro", async (req, res) => {
   }
   try {
     const busca = await pool.query(
-      `SELECT * FROM horimetro 
-       WHERE equipamento = $1 
-       AND (CAST(data1 AS DATE) = $2 OR CAST(data2 AS DATE) = $2)
-       ORDER BY codigo DESC
-       LIMIT 1`,
+      `SELECT * FROM horimetro WHERE equipamento = $1 AND (
+        CAST(ini_1t AS DATE) = $2 OR
+        CAST(data1 AS DATE) = $2 OR
+        CAST(ini_2t AS DATE) = $2 OR
+        CAST(data2 AS DATE) = $2
+      ) ORDER BY codigo DESC LIMIT 1`,
       [equipamento, dataBusca]
     );
-
     const registroExistente = busca.rows[0];
     if (registroExistente) {
       const { codigo } = registroExistente;
-
-      if (periodo === "FIM DO 1° TURNO" && !registroExistente.data1) {
+      if (periodo === "FIM DO 1° TURNO") {
         await pool.query(
           `UPDATE horimetro SET data1 = $1, horimetro1 = $2 WHERE codigo = $3`,
           [dataHora, horimetro, codigo]
         );
         return res.status(200).send("Horímetro do 1º turno salvo com sucesso");
       }
-      if (periodo === "FIM DO 2° TURNO" && !registroExistente.data2) {
+      if (periodo === "FIM DO 2° TURNO") {
         await pool.query(
           `UPDATE horimetro SET data2 = $1, horimetro2 = $2 WHERE codigo = $3`,
           [dataHora, horimetro, codigo]
         );
         return res.status(200).send("Horímetro do 2º turno salvo com sucesso");
       }
+      return res.status(400).send("Período inválido");
     }
     if (periodo === "FIM DO 1° TURNO") {
       await pool.query(
@@ -369,9 +383,7 @@ app.post("/operadores", async (req, res) => {
 app.post("/operacao/inicio", async (req, res) => {
   const { equipamento, hora } = req.body;
   if (!equipamento || !hora) {
-    return res
-      .status(400)
-      .json({ error: "Campos obrigatórios: equipamento, hora" });
+    return res.status(400).json({ error: "Campos obrigatórios: equipamento, hora" });
   }
   const data = hora.slice(0, 10);
   try {
@@ -382,13 +394,14 @@ app.post("/operacao/inicio", async (req, res) => {
     if (busca.rows.length > 0) {
       const reg = busca.rows[0];
       if (reg.ini_1t && reg.fim_1t && !reg.ini_2t) {
-        await pool.query("UPDATE horimetro SET ini_2t = $1 WHERE codigo = $2", [
-          hora,
-          reg.codigo,
-        ]);
+        await pool.query("UPDATE horimetro SET ini_2t = $1 WHERE codigo = $2", [hora, reg.codigo]);
         return res.sendStatus(201);
       }
-      if (!reg.fim_1t) {
+      if (!reg.ini_1t) {
+        await pool.query("UPDATE horimetro SET ini_1t = $1 WHERE codigo = $2", [hora, reg.codigo]);
+        return res.sendStatus(201);
+      }
+      if (reg.ini_1t && !reg.fim_1t) {
         return res.sendStatus(200);
       }
       if (reg.ini_2t && !reg.fim_2t) {
@@ -410,37 +423,33 @@ app.post("/operacao/inicio", async (req, res) => {
 app.post("/operacao/fim", async (req, res) => {
   const { equipamento, hora } = req.body;
   if (!equipamento || !hora) {
-    return res
-      .status(400)
-      .json({ error: "Campos obrigatórios: equipamento, hora" });
+    return res.status(400).json({ error: "Campos obrigatórios: equipamento, hora" });
   }
   const data = hora.slice(0, 10);
   try {
-    const busca = await pool.query(
-      `SELECT * FROM horimetro WHERE equipamento = $1 AND CAST(ini_1t AS DATE) = $2 ORDER BY codigo DESC LIMIT 1`,
+    let busca = await pool.query(
+      `SELECT * FROM horimetro WHERE equipamento = $1 AND CAST(ini_1t AS DATE) = $2 AND (fim_1t IS NULL OR fim_2t IS NULL) ORDER BY codigo DESC LIMIT 1`,
       [equipamento, data]
     );
     if (!busca.rows.length) {
-      return res.sendStatus(200);
+      busca = await pool.query(
+        `SELECT * FROM horimetro WHERE equipamento = $1 AND (fim_1t IS NULL OR fim_2t IS NULL) ORDER BY codigo DESC LIMIT 1`,
+        [equipamento]
+      );
+      if (!busca.rows.length) {
+        return res.status(409).json({ error: "Não há registro aberto para encerrar." });
+      }
     }
     const reg = busca.rows[0];
     if (reg.ini_2t && !reg.fim_2t) {
-      await pool.query("UPDATE horimetro SET fim_2t = $1 WHERE codigo = $2", [
-        hora,
-        reg.codigo,
-      ]);
+      await pool.query("UPDATE horimetro SET fim_2t = $1 WHERE codigo = $2", [hora, reg.codigo]);
       return res.sendStatus(200);
     }
     if (reg.ini_1t && !reg.fim_1t) {
-      await pool.query("UPDATE horimetro SET fim_1t = $1 WHERE codigo = $2", [
-        hora,
-        reg.codigo,
-      ]);
+      await pool.query("UPDATE horimetro SET fim_1t = $1 WHERE codigo = $2", [hora, reg.codigo]);
       return res.sendStatus(200);
     }
-    return res
-      .status(409)
-      .json({ error: "Não há registro aberto para encerrar." });
+    return res.status(409).json({ error: "Não há registro aberto para encerrar." });
   } catch (err) {
     console.error("Erro ao registrar fim de operação:", err);
     res.status(500).send("Erro ao registrar fim de operação");
@@ -595,5 +604,5 @@ app.put("/operadores/:codigo/ativar", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Servidor rodando em http://10.1.1.247:${port}`);
+  console.log(`Servidor rodando em http://10.1.1.11:${port}`);
 });
