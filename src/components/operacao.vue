@@ -167,8 +167,6 @@ async function enviarRequisicao(url, metodo, payload) {
   }
 }
 
-
-
 async function registrarOperacao(tipo) {
   if (!maquinasSelecionadas.value.length) {
     alert("Selecione uma ou mais máquinas");
