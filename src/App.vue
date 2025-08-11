@@ -1,6 +1,7 @@
 <template>
   <div v-if="!operadorLogado">
-    <Login @login-realizado="handleLogin" />
+    <Login v-if="!showLoginPcm" @login-realizado="handleLogin" @abrir-login-pcm="showLoginPcm = true" />
+    <loginPcm v-else @login-realizado="handleLoginPcm" @voltar-login="showLoginPcm = false" />
   </div>
 
   <div v-else class="bg-dark min-vh-100 d-flex align-items-center justify-content-center">
@@ -78,13 +79,15 @@ import Horimetro from './components/horimetro.vue';
 import ConsultarParadas from './components/consultarparadas.vue';
 import Login from './components/login.vue';
 import Operacao from './components/operacao.vue';
+import loginPcm from './components/loginPcm.vue';
 
 export default {
   name: 'App',
-  components: { Horimetro, ConsultarParadas, Login, Operacao },
+  components: { Horimetro, ConsultarParadas, Login, Operacao, loginPcm },
   data() {
     return {
       operadorLogado: null,
+      showLoginPcm: false,
       dataHora: new Date().toLocaleString('pt-BR', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
@@ -96,6 +99,10 @@ export default {
   },
   methods: {
     handleLogin(dadosLogin) {
+      this.operadorLogado = dadosLogin;
+    },
+    handleLoginPcm(dadosLogin) {
+      this.showLoginPcm = false;
       this.operadorLogado = dadosLogin;
     },
     logout() {
