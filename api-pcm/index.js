@@ -485,6 +485,32 @@ app.post("/parada/fim", async (req, res) => {
   }
 });
 
+app.post('/usuarios/login', async (req, res) => {
+  const { usuario, senha } = req.body;
+  if (!usuario || !senha) {
+    return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT usuarios.codigo as coduser, usuarios.usuario, usuarios.tipo, usuarios.unidade, unidade.unidade as uniduser 
+       FROM usuarios, unidade
+       WHERE usuarios.usuario = $1 
+         AND usuarios.unidade = unidade.codigo
+         AND usuarios.senha = $2
+         LIMIT 1`,
+      [usuario, senha]
+    );
+    if (result.rows.length > 0) {
+      res.json({ success: true, usuario: result.rows[0] });
+    } else {
+      res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
+    }
+  } catch (err) {
+    console.error('Erro ao buscar usuário:', err);
+    res.status(500).json({ success: false, message: 'Erro ao buscar usuário' });
+  }
+});
+
 app.put("/motivos-parada/:codigo", async (req, res) => {
   const { codigo } = req.params;
   const { motivo, parada } = req.body;
