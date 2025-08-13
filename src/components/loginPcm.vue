@@ -26,7 +26,6 @@
                 <i class="bi bi-arrow-right-circle me-2"></i>
                 Login
               </button>
-
             </div>
           </div>
         </div>
