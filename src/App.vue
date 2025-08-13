@@ -1,9 +1,11 @@
 <template>
-  <div v-if="!operadorLogado">
+  <div v-if="showPainelAdm">
+    <painelAdm :nomeUsuario="usuarioPainelAdm" :unidadeUsuario="unidadePainelAdm" />
+  </div>
+  <div v-else-if="!operadorLogado">
     <Login v-if="!showLoginPcm" @login-realizado="handleLogin" @abrir-login-pcm="showLoginPcm = true" />
     <loginPcm v-else @login-realizado="handleLoginPcm" @voltar-login="showLoginPcm = false" />
   </div>
-
   <div v-else class="bg-dark min-vh-100 d-flex align-items-center justify-content-center">
     <div class="container">
       <div class="card shadow-lg">
@@ -13,19 +15,22 @@
           <div class="mx-auto mb-2" style="height: 4px; width: 80%; background: #dc3545;"></div>
 
           <div class="d-flex justify-content-center gap-3 mt-4">
-            <button class="btn btn-lg" style="background-color: #000080; color: #fff;" @click="abrirModalOperacao">Registrar Operação</button>
+            <button class="btn btn-lg" style="background-color: #000080; color: #fff;"
+              @click="abrirModalOperacao">Registrar Operação</button>
             <button class="btn btn-secondary btn-lg" @click="abrirModalHorimetro">Registrar Horímetro</button>
             <button class="btn btn-danger btn-lg" @click="abrirModalParada">Consultar Paradas</button>
           </div>
         </div>
       </div>
-      <div class="fixed-bottom w-100 bg-dark py-2 px-4 d-flex justify-content-between align-items-center" style="z-index: 1050;">
+      <div class="fixed-bottom w-100 bg-dark py-2 px-4 d-flex justify-content-between align-items-center"
+        style="z-index: 1050;">
         <div class="text-start">
           <p class="mb-1 text-white">
-        <strong>{{ operadorLogado.operador.nome_operador }} - {{ operadorLogado.operador.setor }}</strong>
+            <strong>{{ operadorLogado.operador.nome_operador }} - {{ operadorLogado.operador.setor }}</strong>
           </p>
         </div>
-        <i class="bi bi-box-arrow-right" style="color: #dc3545; cursor: pointer; font-size: 1.5rem;" @click="logout"></i>
+        <i class="bi bi-box-arrow-right" style="color: #dc3545; cursor: pointer; font-size: 1.5rem;"
+          @click="logout"></i>
       </div>
     </div>
   </div>
@@ -66,8 +71,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <Operacao
-           :key="operacaoKey" />
+          <Operacao :key="operacaoKey" />
         </div>
       </div>
     </div>
@@ -80,14 +84,17 @@ import ConsultarParadas from './components/consultarparadas.vue';
 import Login from './components/login.vue';
 import Operacao from './components/operacao.vue';
 import loginPcm from './components/loginPcm.vue';
+import painelAdm from './components/painelAdm.vue';
 
 export default {
   name: 'App',
-  components: { Horimetro, ConsultarParadas, Login, Operacao, loginPcm },
+  components: { Horimetro, ConsultarParadas, Login, Operacao, loginPcm, painelAdm },
   data() {
     return {
       operadorLogado: null,
       showLoginPcm: false,
+      showPainelAdm: false,
+      usuarioPainelAdm: '',
       dataHora: new Date().toLocaleString('pt-BR', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
@@ -103,7 +110,9 @@ export default {
     },
     handleLoginPcm(dadosLogin) {
       this.showLoginPcm = false;
-      this.operadorLogado = dadosLogin;
+      this.usuarioPainelAdm = dadosLogin?.usuario || '';
+      this.unidadePainelAdm = dadosLogin?.unidade || '';
+      this.showPainelAdm = true;
     },
     logout() {
       if (confirm('Deseja realmente sair do sistema?')) {
@@ -174,18 +183,23 @@ export default {
 body {
   background-color: #212529;
 }
+
 .bg-dark {
   background-color: #212529 !important;
 }
+
 .card {
   border-radius: 1.5rem;
 }
+
 .card-body {
   border-radius: 1.5rem;
 }
+
 button.btn {
   min-width: 150px;
 }
+
 .modal-content {
   background-color: #343a40 !important;
   color: #fff;
