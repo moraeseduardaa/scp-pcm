@@ -79,6 +79,37 @@ app.get("/equipamentos", async (req, res) => {
   }
 });
 
+app.get("/equipamentos-por-unidade", async (req, res) => {
+  const unidade = req.query.unidade;
+  if (!unidade) {
+    return res.status(400).json({ error: "Unidade é obrigatória" });
+  }
+
+  let tiposPermitidos = [];
+  if (unidade === '1') tiposPermitidos = [1];
+  else if (unidade === '2') tiposPermitidos = [1, 2];
+  else if (unidade === '3') tiposPermitidos = [1, 2, 3];
+  else if (unidade === '4') tiposPermitidos = [5, 6, 8, 11];
+
+  try {
+    let sql = `SELECT equipamento.codigo, equipamento.descricao, equipamento.unidade, equipamento.tipo
+               FROM equipamento
+               WHERE equipamento.unidade = $1
+                 AND equipamento.status = 'ATIVO'`;
+    let params = [unidade];
+    if (tiposPermitidos.length > 0) {
+      sql += ' AND equipamento.tipo = ANY($2)';
+      params.push(tiposPermitidos);
+    }
+    sql += ' ORDER BY equipamento.descricao';
+    const result = await pool.query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao buscar equipamentos:', err);
+    res.status(500).json({ error: "Erro ao buscar equipamentos" });
+  }
+});
+
 app.get("/horimetro/aberto/:equipamento", async (req, res) => {
   const equipamento = req.params.equipamento;
   const data = req.query.data;
