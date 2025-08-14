@@ -55,39 +55,37 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { defineProps } from 'vue';
 import Config from './config.vue';
 import Controle from './controle.vue';
 
-export default {
-  name: 'painelAdm',
-  components: { Config, Controle },
-  props: {
-    nomeUsuario: {
-      type: String,
-      default: ''
-    },
-    unidadeUsuario: {
-      type: String,
-      default: ''
-    }
+const props = defineProps({
+  nomeUsuario: {
+    type: String,
+    default: ''
   },
-  methods: {
-    abrirModalCadastro() {
-      const modal = new window.bootstrap.Modal(document.getElementById('cadastroModal'));
-      modal.show();
-    },
-    abrirModalControle() {
-      const modal = new window.bootstrap.Modal(document.getElementById('controleModal'));
-      modal.show();
-    },
-    logout() {
-      if (confirm('Deseja realmente sair do painel administrativo?')) {
-        window.location.reload();
-      }
-    }
+  unidadeUsuario: {
+    type: String,
+    default: ''
   }
-};
+});
+
+function abrirModalCadastro() {
+  const modal = new window.bootstrap.Modal(document.getElementById('cadastroModal'));
+  modal.show();
+}
+
+function abrirModalControle() {
+  const modal = new window.bootstrap.Modal(document.getElementById('controleModal'));
+  modal.show();
+}
+
+function logout() {
+  if (confirm('Deseja realmente sair do painel administrativo?')) {
+    window.location.reload();
+  }
+}
 </script>
 
 <style scoped>
