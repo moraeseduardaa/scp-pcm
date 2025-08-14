@@ -20,7 +20,7 @@
                 <div class="form-check form-switch">
                     <input class="form-check-input bg-dark border-secondary" type="checkbox" id="mostrarInativos"
                         v-model="mostrarInativos" @change="buscarOperadores">
-                        <span>{{ mostrarInativos ? 'Ocultar Inativos' : 'Mostrar Inativos' }}</span>
+                    <span>{{ mostrarInativos ? 'Ocultar Inativos' : 'Mostrar Inativos' }}</span>
                 </div>
                 <button class="btn btn-primary btn-sm" @click="abrirInputAdicionar" v-if="!mostrarInputAdicionar">
                     Adicionar Operador
@@ -32,25 +32,27 @@
                         <input v-model="novoOperadorNome" class="form-control" placeholder="Nome operador"
                             @input="novoOperadorNome = $event.target.value.toUpperCase()" />
                     </div>
-            <div class="col">
-                <select v-model="novoOperadorUnidade" class="form-control">
-                    <option value="" disabled>Unidade</option>
-                    <option v-for="unidade in unidadesFabris" :key="unidade" :value="unidade">{{ unidade }}</option>
-                </select>
-            </div>
-            <div class="col">
-                <select v-model="novoOperadorSetor" class="form-control">
-                    <option value="" disabled>Setor</option>
-                    <option v-for="setor in setoresUnicosAdd" :key="setor" :value="setor">{{ setor }}</option>
-                </select>
-            </div>
-            <div class="col">
-                <select v-model="novoOperadorCelula" class="form-control">
-                    <option value="" disabled>Célula</option>
-                    <option v-for="celula in celulasUnicasAdd" :key="celula" :value="celula">{{ celula }}</option>
-                </select>
-            </div>
-                                        
+                    <div class="col">
+                        <select v-model="novoOperadorUnidade" class="form-control">
+                            <option value="" disabled>Unidade</option>
+                            <option v-for="unidade in unidadesFabris" :key="unidade" :value="unidade">{{ unidade }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <select v-model="novoOperadorSetor" class="form-control">
+                            <option value="" disabled>Setor</option>
+                            <option v-for="setor in setoresUnicosAdd" :key="setor" :value="setor">{{ setor }}</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <select v-model="novoOperadorCelula" class="form-control">
+                            <option value="" disabled>Célula</option>
+                            <option v-for="celula in celulasUnicasAdd" :key="celula" :value="celula">{{ celula }}
+                            </option>
+                        </select>
+                    </div>
+
                     <div class="col-auto d-flex gap-2">
                         <button class="btn btn-success btn-xs-width" @click="adicionarOperador">Salvar</button>
                         <button class="btn btn-secondary btn-xs-width"
@@ -69,11 +71,12 @@
                                         Unidade <i class="bi bi-arrow-down-short"></i>
                                     </span>
                                     <div v-if="dropdownUnidade" class="dropdown-menu-custom">
-                                        <div class="dropdown-item" @click="filtroUnidade = ''; fecharDropdownUnidade()">
+                                        <div class="dropdown-item" @click="selecionarUnidade('')">
                                             Todas as Unidades
                                         </div>
                                         <div class="dropdown-item" v-for="unidade in unidadesFabris" :key="unidade"
-                                            @click="filtroUnidade = unidade; fecharDropdownUnidade()">{{ unidade }}
+                                            @click="selecionarUnidade(unidade)">
+                                            {{ unidade }}
                                         </div>
                                     </div>
                                 </th>
@@ -82,16 +85,16 @@
                                         Setor <i class="bi bi-arrow-down-short"></i>
                                     </span>
                                     <div v-if="dropdownSetor" class="dropdown-menu-custom">
-                                        <div class="dropdown-item" @click="filtroSetor = ''; fecharDropdownSetor()">
+                                        <div class="dropdown-item" @click="selecionarSetor('')">
                                             Todos os Setores
                                         </div>
                                         <div class="dropdown-item" v-for="setor in setoresUnicos" :key="setor"
-                                            @click="filtroSetor = setor; fecharDropdownSetor()">{{ setor }}</div>
+                                            @click="selecionarSetor(setor)">
+                                            {{ setor }}
+                                        </div>
                                     </div>
                                 </th>
-                                <th>
-                                    Célula
-                                </th>
+                                <th>Célula</th>
                                 <th v-if="mostrarInativos">Status</th>
                                 <th class="text-center">Ações</th>
                             </tr>
@@ -126,7 +129,7 @@
                                         <option v-if="editCelula && !celulasUnicas.includes(editCelula)"
                                             :value="editCelula">{{ editCelula }}</option>
                                         <option v-for="celula in celulasUnicas" :key="celula" :value="celula">{{ celula
-                                            }}</option>
+                                        }}</option>
                                     </select>
                                 </td>
                                 <td v-else>{{ op.celula }}</td>
@@ -170,12 +173,11 @@
                 <div class="form-check form-switch">
                     <input class="form-check-input bg-dark border-secondary" type="checkbox" id="mostrarInativosMotivos"
                         v-model="mostrarInativosMotivos" @change="buscarMotivos">
-                        <span>{{ mostrarInativosMotivos ? 'Ocultar Inativos' : 'Mostrar Inativos' }}</span>
+                    <span>{{ mostrarInativosMotivos ? 'Ocultar Inativos' : 'Mostrar Inativos' }}</span>
                 </div>
                 <button class="btn btn-primary btn-sm" @click="abrirInputAdicionarMotivo"
                     v-if="!mostrarInputAdicionarMotivo">Adicionar Motivo</button>
             </div>
-
             <div v-if="mostrarInputAdicionarMotivo" class="mb-3">
                 <div class="row g-2 align-items-center">
                     <div class="col">
@@ -195,22 +197,37 @@
                     </div>
                 </div>
             </div>
-
             <div v-if="motivosDB.length > 0">
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mt-4">
                         <thead>
                             <tr>
                                 <th>Motivo de Parada</th>
-                                <th>Parada</th>
+                                <th class="position-relative">
+                                    <span class="coluna-com-icone" @click.stop="toggleDropdownTipoParada">
+                                        Parada <i class="bi bi-arrow-down-short"></i>
+                                    </span>
+                                    <div v-if="dropdownTipoParada" class="dropdown-menu-custom">
+                                        <div class="dropdown-item" @click="selecionarTipoParada('')">
+                                            Todas
+                                        </div>
+                                        <div class="dropdown-item" @click="selecionarTipoParada('SIM')">
+                                            Programada
+                                        </div>
+                                        <div class="dropdown-item" @click="selecionarTipoParada('NAO')">
+                                            Não Programada
+                                        </div>
+                                    </div>
+                                </th>
                                 <th v-if="mostrarInativosMotivos">Status</th>
                                 <th class="text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="motivo in motivosDB" :key="motivo.codigo">
+                            <tr v-for="motivo in motivosFiltrados" :key="motivo.codigo">
                                 <td v-if="editandoMotivo === motivo.codigo">
-                                    <input v-model="editNomeMotivo" class="form-control" @input="editNomeMotivo = $event.target.value.toUpperCase()" />
+                                    <input v-model="editNomeMotivo" class="form-control"
+                                        @input="editNomeMotivo = $event.target.value.toUpperCase()" />
                                 </td>
                                 <td v-else>{{ motivo.motivo }}</td>
                                 <td v-if="editandoMotivo === motivo.codigo">
@@ -227,14 +244,21 @@
                                 <td class="text-center align-middle">
                                     <div class="d-flex justify-content-center gap-2">
                                         <template v-if="mostrarInativosMotivos">
-                                            <button class="btn btn-success" @click="ativarMotivo(motivo.codigo)">Ativar</button>
+                                            <button class="btn btn-success"
+                                                @click="ativarMotivo(motivo.codigo)">Ativar</button>
                                         </template>
                                         <template v-else>
-                                            <button v-if="editandoMotivo === motivo.codigo" class="btn btn-success btn-sm" @click="salvarEdicaoMotivo(motivo.codigo)">Salvar</button>
-                                            <button v-if="editandoMotivo === motivo.codigo" class="btn btn-secondary btn-sm" @click="cancelarEdicaoMotivo">Cancelar</button>
+                                            <button v-if="editandoMotivo === motivo.codigo"
+                                                class="btn btn-success btn-sm"
+                                                @click="salvarEdicaoMotivo(motivo.codigo)">Salvar</button>
+                                            <button v-if="editandoMotivo === motivo.codigo"
+                                                class="btn btn-secondary btn-sm"
+                                                @click="cancelarEdicaoMotivo">Cancelar</button>
                                             <template v-else>
-                                                <button class="btn btn-secondary btn-sm" @click="editarMotivo(motivo)">Editar</button>
-                                                <button class="btn btn-danger btn-sm" @click="inativarMotivo(motivo.codigo)">Inativar</button>
+                                                <button class="btn btn-secondary btn-sm"
+                                                    @click="editarMotivo(motivo)">Editar</button>
+                                                <button class="btn btn-danger btn-sm"
+                                                    @click="inativarMotivo(motivo.codigo)">Inativar</button>
                                             </template>
                                         </template>
                                     </div>
@@ -248,384 +272,314 @@
                 <p>{{ mostrarInativosMotivos ? 'Nenhum motivo inativo.' : 'Nenhum motivo cadastrado.' }}</p>
             </div>
         </div>
-
     </div>
-    
 </template>
 
-<script>
-export default {
-    name: "Config",
-    data() {
-        return {
-            telaAtiva: "operador",
-            novoOperador: "",
-            operadores: [],
-            operadoresDB: [],
-            editandoOperador: null,
-            editNomeOperador: '',
-            editSetor: '',
-            editUnidade: '',
-            editCelula: '',
-            filtroCelula: '',
-            dropdownCelula: false,
-            novoMotivo: "",
-            motivos: [],
-            motivosDB: [],
-            motivosDetalhes: [],
-            editandoMotivo: null,
-            editNomeMotivo: '',
-            mostrarInputAdicionar: false,
-            novoOperadorNome: '',
-            novoOperadorSetor: '',
-            novoOperadorUnidade: '',
-            novoOperadorCelula: '',
-            mostrarInativos: false,
-            mostrarInativosMotivos: false,
-            filtroSetor: '',
-            dropdownSetor: false,
-            mostrarInputAdicionarMotivo: false,
-            filtroUnidade: '',
-            dropdownUnidade: false,
-            editParadaTipo: '',
-            novoParadaTipo: '',
-            unidadesFabrisList: [],
-            setoresDisponiveisAdd: [],
-            setoresDisponiveisEdit: [],
-        };
-    },
-    computed: {
-        setoresUnicosAdd() {
-            return this.setoresDisponiveisAdd.map(s => s.tipo_descricao);
-        },
-        celulasUnicasAdd() { 
-            if (this.novoOperadorUnidade && this.novoOperadorSetor) {
-                return [...new Set(this.operadoresDB.filter(op => op.unidade === this.novoOperadorUnidade && op.setor === this.novoOperadorSetor).map(op => op.celula).filter(Boolean))].sort();
-            }
-            return [...new Set(this.operadoresDB.map(op => op.celula).filter(Boolean))].sort();
-        },
-        setoresUnicos() {
-            return this.setoresDisponiveisEdit.map(s => s.tipo_descricao);
-        },
-        celulasUnicas() {
-            if (this.editandoOperador && this.editUnidade && this.editSetor) {
-                return [...new Set(this.operadoresDB.filter(op => op.unidade === this.editUnidade && op.setor === this.editSetor).map(op => op.celula).filter(Boolean))].sort();
-            }
-            return [...new Set(this.operadoresDB.map(op => op.celula).filter(Boolean))].sort();
-        },
-        toggleDropdownCelula() {
-            this.dropdownCelula = !this.dropdownCelula;
-        },
-        fecharDropdownCelula() {
-            this.dropdownCelula = false;
-        },
-        unidadesFabris() {
-            return this.unidadesFabrisList;
-        },
-        operadoresFiltrados() {
-            let filtrados = this.operadoresDB;
-            if (this.filtroUnidade) {
-                filtrados = filtrados.filter(op => op.unidade === this.filtroUnidade);
-            }
-            if (this.filtroSetor) {
-                filtrados = filtrados.filter(op => op.setor === this.filtroSetor);
-            }
-            if (this.filtroCelula) {
-                filtrados = filtrados.filter(op => op.celula === this.filtroCelula);
-            }
-            return filtrados;
-        }
-    },
-    methods: {
-        async buscarOperadores() {
-            try {
-                let url = 'http://10.1.1.11:3000/operadores';
-                if (this.mostrarInativos) {
-                    url += '?status=INATIVO';
-                }
-                const res = await fetch(url);
-                let data = await res.json();
-                if (data && data.Content) {
-                    try {
-                        data = JSON.parse(data.Content);
-                    } catch (e) {
-                        console.error('Erro ao parsear Content:', e);
-                    }
-                }
-                this.operadoresDB = Array.isArray(data) ? data : [];
-            } catch (e) {
-                console.error('Erro ao buscar operadores:', e);
-            }
-        },
-        abrirInputAdicionar() {
-            this.mostrarInputAdicionar = true;
-            this.$nextTick(() => {
-                const input = this.$el.querySelector('input[placeholder="Nome do operador"]');
-                if (input) input.focus();
-            });
-        },
-        cancelarAdicionarOperador() {
-            this.mostrarInputAdicionar = false;
-            this.novoOperadorNome = '';
-            this.novoOperadorSetor = '';
-        },
-        editarOperador(op) {
-            this.editandoOperador = op.codigo;
-            this.editNomeOperador = op.nome_operador;
-            this.editUnidade = op.unidade;
-            this.editSetor = op.setor;
-            this.editCelula = op.celula;
-        },
-        cancelarEdicaoOperador() {
-            this.editandoOperador = null;
-            this.editNomeOperador = '';
-            this.editSetor = '';
-            this.editUnidade = '';
-            this.editCelula = '';
-        },
-        async ativarOperador(codigo) {
-            try {
-                await fetch(`http://10.1.1.11:3000/operadores/${codigo}/ativar`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                this.buscarOperadores();
-            } catch (e) {
-                alert('Erro ao ativar operador!');
-            }
-        },
-        async salvarEdicaoOperador(codigo) {
-            try {
-                await fetch(`http://10.1.1.11:3000/operadores/${codigo}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nome_operador: this.editNomeOperador,
-                        setor: this.editSetor,
-                        unidade: this.editUnidade,
-                        celula: this.editCelula
-                    })
-                });
-                this.buscarOperadores();
-                this.cancelarEdicaoOperador();
-            } catch (e) {
-                alert('Erro ao salvar edição!');
-            }
-        },
-        async inativarOperador(codigo) {
-            if (confirm('Tem certeza que deseja inativar este operador?')) {
-                try {
-                    await fetch(`http://10.1.1.11:3000/operadores/${codigo}/inativar`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    this.buscarOperadores();
-                } catch (e) {
-                    alert('Erro ao inativar operador!');
-                }
-            }
-        },
-        async adicionarOperador() {
-            if (!this.novoOperadorNome.trim() || !this.novoOperadorUnidade || !this.novoOperadorSetor.trim() || !this.novoOperadorCelula) {
-                alert('Preencha o nome, unidade, setor e célula!');
-                return;
-            }
-            try {
-                await fetch('http://10.1.1.11:3000/operadores', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nome_operador: this.novoOperadorNome.trim(),
-                        unidade: this.novoOperadorUnidade,
-                        setor: this.novoOperadorSetor.trim(),
-                        celula: this.novoOperadorCelula
-                    })
-                });
-                this.novoOperadorNome = '';
-                this.novoOperadorSetor = '';
-                this.novoOperadorUnidade = '';
-                this.novoOperadorCelula = '';
-                this.mostrarInputAdicionar = false;
-                this.buscarOperadores();
-            } catch (e) {
-                alert('Erro ao adicionar operador!');
-            }
-        },
-        async buscarUnidadesFabris() {
-            try {
-                const res = await fetch('http://10.1.1.11:3000/unidades-fabrica');
-                const data = await res.json();
-                this.unidadesFabrisList = Array.isArray(data) ? data : [];
-            } catch (e) {
-                console.error('Erro ao buscar unidades fabris:', e);
-                this.unidadesFabrisList = [];
-            }
-        },
-        toggleDropdownSetor() {
-            this.dropdownSetor = !this.dropdownSetor;
-        },
-        fecharDropdownSetor() {
-            this.dropdownSetor = false;
-        },
-        toggleDropdownUnidade() {
-            this.dropdownUnidade = !this.dropdownUnidade;
-        },
-        fecharDropdownUnidade() {
-            this.dropdownUnidade = false;
-        },
-        async buscarSetoresPorUnidadeAdd() {
-            if (!this.novoOperadorUnidade) {
-                this.setoresDisponiveisAdd = [];
-                return;
-            }
-            try {
-                const res = await fetch(`http://10.1.1.11:3000/setores-por-unidade?unidade=${encodeURIComponent(this.novoOperadorUnidade)}`);
-                const data = await res.json();
-                this.setoresDisponiveisAdd = Array.isArray(data) ? data : [];
-            } catch (e) {
-                this.setoresDisponiveisAdd = [];
-            }
-        },
-        async buscarSetoresPorUnidadeEdit() {
-            if (!this.editUnidade) {
-                this.setoresDisponiveisEdit = [];
-                return;
-            }
-            try {
-                const res = await fetch(`http://10.1.1.11:3000/setores-por-unidade?unidade=${encodeURIComponent(this.editUnidade)}`);
-                const data = await res.json();
-                this.setoresDisponiveisEdit = Array.isArray(data) ? data : [];
-            } catch (e) {
-                this.setoresDisponiveisEdit = [];
-            }
-        },
+<script setup>
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 
-        async buscarMotivos() {
-            try {
-                let url = 'http://10.1.1.11:3000/motivos-parada';
-                if (this.mostrarInativosMotivos) {
-                    url += '?status=INATIVO';
-                }
-                console.log('URL para motivos:', url);
-                console.log('mostrarInativosMotivos:', this.mostrarInativosMotivos);
-                const res = await fetch(url);
-                let data = await res.json();
-                if (data && data.Content) {
-                    try {
-                        data = JSON.parse(data.Content);
-                    } catch (e) {
-                        console.error('Erro ao parsear Content:', e);
-                    }
-                }
-                this.motivosDB = Array.isArray(data) ? data : [];
-                console.log('motivosDB final:', this.motivosDB);
-            } catch (e) {
-                console.error('Erro ao buscar motivos:', e);
-            }
-        },
-        abrirInputAdicionarMotivo() {
-            this.mostrarInputAdicionarMotivo = true;
-            this.$nextTick(() => {
-                const input = this.$el.querySelector('input[placeholder="Novo motivo de parada"]');
-                if (input) input.focus();
-            });
-        },
-        cancelarAdicionarMotivo() {
-            this.mostrarInputAdicionarMotivo = false;
-            this.novoMotivo = '';
-        },
-        async adicionarMotivo() {
-            if (!this.novoMotivo.trim() || !this.novoParadaTipo) {
-                alert('Preencha o motivo e selecione o tipo de parada!');
-                return;
-            }
-            try {
-                await fetch('http://10.1.1.11:3000/motivos-parada', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ motivo: this.novoMotivo.trim(), parada: this.novoParadaTipo })
-                });
-                this.novoMotivo = '';
-                this.novoParadaTipo = '';
-                this.mostrarInputAdicionarMotivo = false;
-                this.buscarMotivos();
-            } catch (e) {
-                alert('Erro ao adicionar motivo!');
-            }
-        },
-        async inativarMotivo(codigo) {
-            if (confirm('Tem certeza que deseja inativar este motivo?')) {
-                try {
-                    await fetch(`http://10.1.1.11:3000/motivos-parada/${codigo}/inativar`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    this.buscarMotivos();
-                } catch (e) {
-                    alert('Erro ao inativar motivo!');
-                }
-            }
-        },
-        async ativarMotivo(codigo) {
-            try {
-                await fetch(`http://10.1.1.11:3000/motivos-parada/${codigo}/ativar`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                this.buscarMotivos();
-            } catch (e) {
-                alert('Erro ao ativar motivo!');
-            }
-        },
-        editarMotivo(motivo) {
-            this.editandoMotivo = motivo.codigo;
-            this.editNomeMotivo = motivo.motivo;
-            this.editParadaTipo = motivo.parada || '';
-        },
-        cancelarEdicaoMotivo() {
-            this.editandoMotivo = null;
-            this.editNomeMotivo = '';
-            this.editParadaTipo = '';
-        },
-        async salvarEdicaoMotivo(codigo) {
-            if (!this.editNomeMotivo.trim() || !this.editParadaTipo) {
-                alert('Preencha o motivo e selecione o tipo de parada!');
-                return;
-            }
-            try {
-                await fetch(`http://10.1.1.11:3000/motivos-parada/${codigo}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ motivo: this.editNomeMotivo.trim(), parada: this.editParadaTipo })
-                });
-                this.buscarMotivos();
-                this.cancelarEdicaoMotivo();
-            } catch (e) {
-                alert('Erro ao salvar edição!');
-            }
-        },
-    },
-    watch: {
-        atualizar() {
-            setTimeout(() => {
-                this.buscarOperadores();
-            }, 100);
-        },
-        novoOperadorUnidade(newVal) {
-            this.novoOperadorSetor = '';
-            this.buscarSetoresPorUnidadeAdd();
-        },
-        editUnidade(newVal) {
-            this.editSetor = '';
-            this.buscarSetoresPorUnidadeEdit();
-        },
-    },
-    async mounted() {
-        this.buscarOperadores();
-        this.buscarMotivos();
-        await this.buscarUnidadesFabris();
-    },
-};
+const telaAtiva = ref("operador");
+const unidadesFabrisList = ref([]);
+const operadoresDB = ref([]);
+const motivosDB = ref([]);
+const setoresDisponiveisAdd = ref([]);
+const setoresDisponiveisEdit = ref([]);
+
+const filtroUnidade = ref("");
+const filtroSetor = ref("");
+const filtroCelula = ref("");
+const filtroTipoParada = ref("");
+
+const dropdownUnidade = ref(false);
+const dropdownSetor = ref(false);
+const dropdownTipoParada = ref(false);
+
+const novoOperadorNome = ref("");
+const novoOperadorUnidade = ref("");
+const novoOperadorSetor = ref("");
+const novoOperadorCelula = ref("");
+const novoMotivo = ref("");
+const novoParadaTipo = ref("");
+
+const editandoOperador = ref(null);
+const editNomeOperador = ref("");
+const editUnidade = ref("");
+const editSetor = ref("");
+const editCelula = ref("");
+const editandoMotivo = ref(null);
+const editNomeMotivo = ref("");
+const editParadaTipo = ref("");
+
+const mostrarInativos = ref(false);
+const mostrarInputAdicionar = ref(false);
+const mostrarInativosMotivos = ref(false);
+const mostrarInputAdicionarMotivo = ref(false);
+
+const unidadesFabris = computed(() => unidadesFabrisList.value);
+const setoresUnicosAdd = computed(() => setoresDisponiveisAdd.value.map(s => s.tipo_descricao));
+const celulasUnicasAdd = computed(() => filtrarCelulas(novoOperadorUnidade.value, novoOperadorSetor.value));
+const celulasUnicas = computed(() => filtrarCelulas(editUnidade.value, editSetor.value));
+
+const operadoresFiltrados = computed(() => {
+    return operadoresDB.value.filter(op => {
+        const unidadeOk = !filtroUnidade.value || String(op.unidade).toUpperCase().trim() === String(filtroUnidade.value).toUpperCase().trim();
+        const setorOk = !filtroSetor.value || String(op.setor).toUpperCase().trim() === String(filtroSetor.value).toUpperCase().trim();
+        const celulaOk = !filtroCelula.value || String(op.celula).toUpperCase().trim() === String(filtroCelula.value).toUpperCase().trim();
+        return unidadeOk && setorOk && celulaOk;
+    });
+});
+
+const motivosFiltrados = computed(() => {
+    return motivosDB.value.filter(motivo => {
+        if (!filtroTipoParada.value) return true;
+        return String(motivo.parada).toUpperCase().trim() === filtroTipoParada.value.toUpperCase().trim();
+    });
+});
+
+const setoresUnicos = computed(() => {
+    if (!filtroUnidade.value) {
+        const setores = [];
+        operadoresDB.value.forEach(op => {
+            if (op.setor && !setores.includes(op.setor)) setores.push(op.setor);
+        });
+        return setores.sort();
+    } else {
+        const setores = [];
+        operadoresDB.value.forEach(op => {
+            if (op.unidade === filtroUnidade.value && op.setor && !setores.includes(op.setor)) setores.push(op.setor);
+        });
+        return setores.sort();
+    }
+});
+
+async function request(url, options = {}) {
+    try {
+        const res = await fetch(url, options);
+        let data = await res.json();
+        if (data?.Content) data = JSON.parse(data.Content);
+        return Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.error("Erro na requisição:", e);
+        return [];
+    }
+}
+
+function filtrarCelulas(unidade, setor) {
+    return [...new Set(
+        operadoresDB.value
+            .filter(op => (!unidade || op.unidade === unidade) && (!setor || op.setor === setor))
+            .map(op => op.celula)
+            .filter(Boolean)
+    )].sort();
+}
+
+async function buscarUnidadesFabris() {
+    unidadesFabrisList.value = await request(`http://10.1.1.11:3000/unidades-fabrica`);
+}
+
+async function buscarSetoresPorUnidadeAdd() {
+    setoresDisponiveisAdd.value = novoOperadorUnidade.value
+        ? await request(`http://10.1.1.11:3000/setores-por-unidade?unidade=${encodeURIComponent(novoOperadorUnidade.value)}`)
+        : [];
+}
+
+async function buscarSetoresPorUnidadeEdit() {
+    setoresDisponiveisEdit.value = editUnidade.value
+        ? await request(`http://10.1.1.11:3000/setores-por-unidade?unidade=${encodeURIComponent(editUnidade.value)}`)
+        : [];
+}
+
+//filtros
+function toggleDropdownUnidade() {
+    dropdownUnidade.value = !dropdownUnidade.value;
+    dropdownSetor.value = false;
+}
+function selecionarUnidade(unidade) {
+    filtroUnidade.value = unidade;
+    dropdownUnidade.value = false;
+}
+
+function toggleDropdownSetor() {
+    dropdownSetor.value = !dropdownSetor.value;
+    dropdownUnidade.value = false;
+}
+function selecionarSetor(setor) {
+    filtroSetor.value = setor;
+    dropdownSetor.value = false;
+}
+
+function toggleDropdownTipoParada() {
+    dropdownTipoParada.value = !dropdownTipoParada.value;
+}
+function selecionarTipoParada(tipo) {
+    filtroTipoParada.value = tipo;
+    dropdownTipoParada.value = false;
+}
+
+//operadores
+async function buscarOperadores() {
+    const url = `http://10.1.1.11:3000/operadores${mostrarInativos.value ? "?status=INATIVO" : ""}`;
+    operadoresDB.value = await request(url);
+}
+function abrirInputAdicionar() {
+    mostrarInputAdicionar.value = true;
+    nextTick(() => document.querySelector('input[placeholder="Nome do operador"]')?.focus());
+}
+function cancelarAdicionarOperador() {
+    mostrarInputAdicionar.value = false;
+    novoOperadorNome.value = "";
+    novoOperadorSetor.value = "";
+}
+async function adicionarOperador() {
+    if (!novoOperadorNome.value.trim() || !novoOperadorUnidade.value || !novoOperadorSetor.value.trim() || !novoOperadorCelula.value)
+        return alert("Preencha o nome, unidade, setor e célula!");
+
+    await fetch(`http://10.1.1.11:3000/operadores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            nome_operador: novoOperadorNome.value.trim(),
+            unidade: novoOperadorUnidade.value,
+            setor: novoOperadorSetor.value.trim(),
+            celula: novoOperadorCelula.value
+        })
+    });
+
+    novoOperadorNome.value = "";
+    novoOperadorSetor.value = "";
+    novoOperadorUnidade.value = "";
+    novoOperadorCelula.value = "";
+    mostrarInputAdicionar.value = false;
+
+    buscarOperadores();
+}
+
+function editarOperador(op) {
+    editandoOperador.value = op.codigo;
+    editNomeOperador.value = op.nome_operador;
+    editUnidade.value = op.unidade;
+    editSetor.value = op.setor;
+    editCelula.value = op.celula;
+}
+async function salvarEdicaoOperador(codigo) {
+    await fetch(`http://10.1.1.11:3000/operadores/${codigo}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            nome_operador: editNomeOperador.value,
+            setor: editSetor.value,
+            unidade: editUnidade.value,
+            celula: editCelula.value
+        })
+    });
+    buscarOperadores();
+    cancelarEdicaoOperador();
+}
+function cancelarEdicaoOperador() {
+    editandoOperador.value = null;
+    editNomeOperador.value = "";
+    editSetor.value = "";
+    editUnidade.value = "";
+    editCelula.value = "";
+}
+
+function inativarOperador(codigo) {
+    if (confirm("Tem certeza que deseja inativar este operador?"))
+        alterarStatusOperador(codigo, "inativar");
+}
+function ativarOperador(codigo) {
+    alterarStatusOperador(codigo, "ativar");
+}
+
+async function alterarStatusOperador(codigo, acao) {
+    await fetch(`http://10.1.1.11:3000/operadores/${codigo}/${acao}`, { method: "PUT", headers: { "Content-Type": "application/json" } });
+    buscarOperadores();
+}
+
+//motivos-parada
+async function buscarMotivos() {
+    const url = `http://10.1.1.11:3000/motivos-parada${mostrarInativosMotivos.value ? "?status=INATIVO" : ""}`;
+    motivosDB.value = await request(url);
+}
+function abrirInputAdicionarMotivo() {
+    mostrarInputAdicionarMotivo.value = true;
+    nextTick(() => document.querySelector('input[placeholder="Novo motivo de parada"]')?.focus());
+}
+function cancelarAdicionarMotivo() {
+    mostrarInputAdicionarMotivo.value = false;
+    novoMotivo.value = "";
+}
+async function adicionarMotivo() {
+    if (!novoMotivo.value.trim() || !novoParadaTipo.value)
+        return alert("Preencha o motivo e selecione o tipo de parada!");
+
+    await fetch(`http://10.1.1.11:3000/motivos-parada`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: novoMotivo.value.trim(), parada: novoParadaTipo.value })
+    });
+
+    novoMotivo.value = "";
+    novoParadaTipo.value = "";
+    mostrarInputAdicionarMotivo.value = false;
+    buscarMotivos();
+}
+
+function editarMotivo(motivo) {
+    editandoMotivo.value = motivo.codigo;
+    editNomeMotivo.value = motivo.motivo;
+    editParadaTipo.value = motivo.parada || "";
+}
+async function salvarEdicaoMotivo(codigo) {
+    if (!editNomeMotivo.value.trim() || !editParadaTipo.value)
+        return alert("Preencha o motivo e selecione o tipo de parada!");
+
+    await fetch(`http://10.1.1.11:3000/motivos-parada/${codigo}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: editNomeMotivo.value.trim(), parada: editParadaTipo.value })
+    });
+
+    buscarMotivos();
+    cancelarEdicaoMotivo();
+}
+function cancelarEdicaoMotivo() {
+    editandoMotivo.value = null;
+    editNomeMotivo.value = "";
+    editParadaTipo.value = "";
+}
+
+function inativarMotivo(codigo) {
+    if (confirm("Tem certeza que deseja inativar este motivo?"))
+        alterarStatusMotivo(codigo, "inativar");
+}
+function ativarMotivo(codigo) {
+    alterarStatusMotivo(codigo, "ativar");
+}
+
+async function alterarStatusMotivo(codigo, acao) {
+    await fetch(`http://10.1.1.11:3000/motivos-parada/${codigo}/${acao}`, { method: "PUT", headers: { "Content-Type": "application/json" } });
+    buscarMotivos();
+}
+
+watch(novoOperadorUnidade, () => {
+    novoOperadorSetor.value = "";
+    buscarSetoresPorUnidadeAdd();
+});
+
+watch(editUnidade, () => {
+    editSetor.value = "";
+    buscarSetoresPorUnidadeEdit();
+});
+
+onMounted(async () => {
+    const unidadeLogin = window?.app?.unidadePainelAdm;
+    filtroUnidade.value = unidadeLogin !== undefined && unidadeLogin !== null ? String(unidadeLogin) : "";
+    await buscarOperadores();
+    buscarMotivos();
+    await buscarUnidadesFabris();
+});
+
 </script>
 
 <style scoped>
