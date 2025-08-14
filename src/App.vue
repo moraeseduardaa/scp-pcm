@@ -1,6 +1,6 @@
 <template>
   <div v-if="showPainelAdm">
-    <painelAdm :nomeUsuario="usuarioPainelAdm" :unidadeUsuario="unidadePainelAdm" />
+  <painelAdm :nomeUsuario="usuarioPainelAdm" :unidadeUsuario="String(unidadePainelAdm)" />
   </div>
   <div v-else-if="!operadorLogado">
     <Login v-if="!showLoginPcm" @login-realizado="handleLogin" @abrir-login-pcm="showLoginPcm = true" />
@@ -78,7 +78,8 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted, nextTick } from 'vue';
 import Horimetro from './components/horimetro.vue';
 import ConsultarParadas from './components/consultarparadas.vue';
 import Login from './components/login.vue';
@@ -86,97 +87,95 @@ import Operacao from './components/operacao.vue';
 import loginPcm from './components/loginPcm.vue';
 import painelAdm from './components/painelAdm.vue';
 
-export default {
-  name: 'App',
-  components: { Horimetro, ConsultarParadas, Login, Operacao, loginPcm, painelAdm },
-  data() {
-    return {
-      operadorLogado: null,
-      showLoginPcm: false,
-      showPainelAdm: false,
-      usuarioPainelAdm: '',
-      dataHora: new Date().toLocaleString('pt-BR', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      }),
-      horimetroKey: 0,
-      paradaKey: 0,
-      operacaoKey: 0
-    };
-  },
-  methods: {
-    handleLogin(dadosLogin) {
-      this.operadorLogado = dadosLogin;
-    },
-    handleLoginPcm(dadosLogin) {
-      this.showLoginPcm = false;
-      this.usuarioPainelAdm = dadosLogin?.usuario || '';
-      this.unidadePainelAdm = dadosLogin?.unidade || '';
-      this.showPainelAdm = true;
-    },
-    logout() {
-      if (confirm('Deseja realmente sair do sistema?')) {
-        this.operadorLogado = null;
-        localStorage.removeItem('operadorLogado');
-      }
-    },
-    abrirModalHorimetro() {
-      this.horimetroKey++;
-      const modal = new window.bootstrap.Modal(document.getElementById('horimetroModal'));
-      modal.show();
-    },
-    abrirModalParada() {
-      this.paradaKey++;
-      const modal = new window.bootstrap.Modal(document.getElementById('paradaModal'));
-      modal.show();
-    },
-    abrirModalOperacao() {
-      this.operacaoKey++;
-      const modal = new window.bootstrap.Modal(document.getElementById('operacaoModal'));
-      modal.show();
-    }
-  },
-  mounted() {
-    const operadorSalvo = localStorage.getItem('operadorLogado');
-    if (operadorSalvo) {
-      try {
-        this.operadorLogado = JSON.parse(operadorSalvo);
-      } catch (e) {
-        console.error('Erro ao recuperar operador logado:', e);
-        localStorage.removeItem('operadorLogado');
-      }
-    }
+const operadorLogado = ref(null);
+const showLoginPcm = ref(false);
+const showPainelAdm = ref(false);
+const usuarioPainelAdm = ref('');
+const unidadePainelAdm = ref('');
+const dataHora = ref(new Date().toLocaleString('pt-BR', {
+  day: '2-digit', month: '2-digit', year: 'numeric',
+  hour: '2-digit', minute: '2-digit'
+}));
+const horimetroKey = ref(0);
+const paradaKey = ref(0);
+const operacaoKey = ref(0);
 
-    this.$nextTick(() => {
-      const paradaModal = document.getElementById('paradaModal');
-      if (paradaModal) {
-        paradaModal.addEventListener('show.bs.modal', () => {
-          setTimeout(() => {
-            this.$root.$emit && this.$root.$emit('abrir-parada');
-          }, 50);
-        });
-        paradaModal.addEventListener('hidden.bs.modal', () => {
-          setTimeout(() => {
-            this.$root.$emit && this.$root.$emit('abrir-parada');
-          }, 50);
-        });
-      }
-      const horimetroModal = document.getElementById('horimetroModal');
-      if (horimetroModal) {
-        horimetroModal.addEventListener('show.bs.modal', () => {
-          setTimeout(() => {
-            this.$root.$emit && this.$root.$emit('abrir-horimetro');
-          }, 50);
-        });
-        horimetroModal.addEventListener('hidden.bs.modal', () => {
-          setTimeout(() => {
-            this.$root.$emit && this.$root.$emit('abrir-horimetro');
-          }, 50);
-        });
-      }
-    });
+function handleLogin(dadosLogin) {
+  operadorLogado.value = dadosLogin;
+}
+
+function handleLoginPcm(dadosLogin) {
+  showLoginPcm.value = false;
+  usuarioPainelAdm.value = dadosLogin?.usuario || '';
+  unidadePainelAdm.value = dadosLogin?.unidade || '';
+  showPainelAdm.value = true;
+}
+
+function logout() {
+  if (confirm('Deseja realmente sair do sistema?')) {
+    operadorLogado.value = null;
+    localStorage.removeItem('operadorLogado');
   }
-};
+}
+
+function abrirModalHorimetro() {
+  horimetroKey.value++;
+  const modal = new window.bootstrap.Modal(document.getElementById('horimetroModal'));
+  modal.show();
+}
+
+function abrirModalParada() {
+  paradaKey.value++;
+  const modal = new window.bootstrap.Modal(document.getElementById('paradaModal'));
+  modal.show();
+}
+
+function abrirModalOperacao() {
+  operacaoKey.value++;
+  const modal = new window.bootstrap.Modal(document.getElementById('operacaoModal'));
+  modal.show();
+}
+
+onMounted(() => {
+  const operadorSalvo = localStorage.getItem('operadorLogado');
+  if (operadorSalvo) {
+    try {
+      operadorLogado.value = JSON.parse(operadorSalvo);
+    } catch (e) {
+      console.error('Erro ao recuperar operador logado:', e);
+      localStorage.removeItem('operadorLogado');
+    }
+  }
+
+  nextTick(() => {
+    const paradaModal = document.getElementById('paradaModal');
+    if (paradaModal) {
+      paradaModal.addEventListener('show.bs.modal', () => {
+        setTimeout(() => {
+          // $root.$emit('abrir-parada')
+        }, 50);
+      });
+      paradaModal.addEventListener('hidden.bs.modal', () => {
+        setTimeout(() => {
+          // $root.$emit('abrir-parada')
+        }, 50);
+      });
+    }
+    const horimetroModal = document.getElementById('horimetroModal');
+    if (horimetroModal) {
+      horimetroModal.addEventListener('show.bs.modal', () => {
+        setTimeout(() => {
+          // $root.$emit('abrir-horimetro')
+        }, 50);
+      });
+      horimetroModal.addEventListener('hidden.bs.modal', () => {
+        setTimeout(() => {
+          // $root.$emit('abrir-horimetro')
+        }, 50);
+      });
+    }
+  });
+});
 </script>
 
 <style>
