@@ -2,11 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const pool = require("./db");
 const fs = require("fs");
-const path = require("path");
 
 const app = express();
 const port = 3000;
-const MOTIVOS_PATH = path.join(__dirname, "motivos.json");
 
 app.use(cors());
 app.use(express.json());
@@ -110,6 +108,37 @@ app.get("/equipamentos-por-unidade", async (req, res) => {
   }
 });
 
+app.get("/horimetro", async (req, res) => {
+  const unidade = req.query.unidade;
+  const data = req.query.data;
+  if (!unidade) {
+    return res.status(400).json({ error: "Unidade é obrigatória!" });
+  }
+  try {
+    let query = `
+      SELECT h.equipamento,
+             h.ini_1t,
+             h.fim_1t,
+             h.ini_2t,
+             h.fim_2t
+      FROM horimetro h
+      JOIN equipamento e ON e.codigo = h.equipamento
+      WHERE e.unidade = $1
+    `;
+    let params = [unidade];
+    if (data) {
+      query += ` AND (CAST(h.ini_1t AS DATE) = $2 OR CAST(h.ini_2t AS DATE) = $2)`;
+      params.push(data);
+    }
+    query += ` ORDER BY h.equipamento;`;
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Erro ao buscar dados do horímetro:", err);
+    res.status(500).send("Erro ao buscar dados do horímetro");
+  }
+});
+
 app.get("/horimetro/aberto/:equipamento", async (req, res) => {
   const equipamento = req.params.equipamento;
   const data = req.query.data;
@@ -129,21 +158,6 @@ app.get("/horimetro/aberto/:equipamento", async (req, res) => {
   } catch (err) {
     console.error("Erro ao verificar operação aberta (horimetro):", err);
     res.status(500).send("Erro ao verificar operação aberta (horimetro)");
-  }
-});
-
-app.get("/motivos-parada", async (req, res) => {
-  try {
-    let status = req.query.status || "ATIVO";
-    status = status.toUpperCase();
-    const result = await pool.query(
-      "SELECT codigo, motivo, status, programada as parada FROM motivos_parada WHERE status = $1 ORDER BY motivo",
-      [status]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Erro ao buscar motivos:", err);
-    res.status(500).send("Erro ao buscar motivos");
   }
 });
 
@@ -199,6 +213,21 @@ app.get("/operacao/aberta/:equipamento", async (req, res) => {
   } catch (err) {
     console.error("Erro ao verificar operação aberta:", err);
     res.status(500).send("Erro ao verificar operação aberta");
+  }
+});
+
+app.get("/motivos-parada", async (req, res) => {
+  try {
+    let status = req.query.status || "ATIVO";
+    status = status.toUpperCase();
+    const result = await pool.query(
+      "SELECT codigo, motivo, status, programada as parada FROM motivos_parada WHERE status = $1 ORDER BY motivo",
+      [status]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Erro ao buscar motivos:", err);
+    res.status(500).send("Erro ao buscar motivos");
   }
 });
 
