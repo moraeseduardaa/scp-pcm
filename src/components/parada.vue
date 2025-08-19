@@ -132,15 +132,18 @@ const alternarTodosSelecionados = (event) => {
     : [];
 };
 
-watch([tipoSelecionado, celulaSelecionada], ([novoTipo, novaCelula], [oldTipo, oldCelula]) => {
+watch(tipoSelecionado, async (novoTipo) => {
   if (novoTipo) {
-    carregarCelulas(tipoSelecionado, celulas, celulaSelecionada);
+    await carregarCelulas(tipoSelecionado, celulas, celulaSelecionada);
   } else {
     celulas.value = [];
     celulaSelecionada.value = '';
   }
-  if (novoTipo && novaCelula) {
-    carregarMaquinas(tipoSelecionado, celulaSelecionada, maquinas);
+});
+
+watch(celulaSelecionada, async (novaCelula) => {
+  if (tipoSelecionado.value && novaCelula) {
+    await carregarMaquinas(tipoSelecionado, celulaSelecionada, maquinas);
   } else {
     maquinas.value = [];
   }
