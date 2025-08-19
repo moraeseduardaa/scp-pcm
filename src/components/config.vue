@@ -117,9 +117,9 @@
                                 <td v-else>{{ op.unidade }}</td>
                                 <td v-if="editandoOperador === op.codigo">
                                     <select v-model="editSetor" class="form-control">
-                                        <option v-if="editSetor && !setoresUnicos.includes(editSetor)"
+                                        <option v-if="editSetor && !setoresUnicosEdit.includes(editSetor)"
                                             :value="editSetor">{{ editSetor }}</option>
-                                        <option v-for="setor in setoresUnicos" :key="setor" :value="setor">{{ setor }}
+                                        <option v-for="setor in setoresUnicosEdit" :key="setor" :value="setor">{{ setor }}
                                         </option>
                                     </select>
                                 </td>
@@ -317,6 +317,7 @@ const mostrarInputAdicionarMotivo = ref(false);
 
 const unidadesFabris = computed(() => unidadesFabrisList.value);
 const setoresUnicosAdd = computed(() => setoresDisponiveisAdd.value.map(s => s.tipo_descricao));
+const setoresUnicosEdit = computed(() => setoresDisponiveisEdit.value.map(s => s.tipo_descricao));
 const celulasUnicasAdd = computed(() => filtrarCelulas(novoOperadorUnidade.value, novoOperadorSetor.value));
 const celulasUnicas = computed(() => filtrarCelulas(editUnidade.value, editSetor.value));
 
@@ -454,10 +455,11 @@ async function adicionarOperador() {
     buscarOperadores();
 }
 
-function editarOperador(op) {
+async function editarOperador(op) {
     editandoOperador.value = op.codigo;
     editNomeOperador.value = op.nome_operador;
     editUnidade.value = op.unidade;
+    await buscarSetoresPorUnidadeEdit();
     editSetor.value = op.setor;
     editCelula.value = op.celula;
 }
@@ -579,7 +581,6 @@ onMounted(async () => {
     buscarMotivos();
     await buscarUnidadesFabris();
 });
-
 </script>
 
 <style scoped>
