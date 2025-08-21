@@ -157,17 +157,21 @@ async function enviarParada(acao) {
 
   const dataReferenciaTurno = getDataReferenciaTurno(dataHora.value);
 
-  async function buscarParadasAbertas(maquinas, dataReferencia) {
-    let maquinasComParada = [];
-    let maquinasSemParada = [];
-    let paradasAbertasInfo = [];
+    async function buscarParadasAbertas(maquinasSelecionadas, dataReferencia) {
+      let maquinasComParada = [];
+      let maquinasSemParada = [];
+      let paradasAbertasInfo = [];
+      const listaMaquinas = (typeof maquinas !== 'undefined' && maquinas.value) ? maquinas.value : [];
 
-    for (const maquinaId of maquinas) {
+  for (const maquinaId of maquinasSelecionadas) {
       try {
-        const res = await fetch(`http://10.1.1.11:3000/parada/aberta/${maquinaId}?data=${dataReferencia}`);
+        const url = `http://10.1.1.11:3000/parada/aberta/${maquinaId}?data=${dataReferencia}`;
+        console.log('Buscando parada aberta:', url);
+        const res = await fetch(url);
         if (res.status === 200) {
           const parada = await res.json();
-          const maquinaEncontrada = maquinas.value.find(m => m.id === maquinaId);
+          console.log('Resposta parada aberta:', parada);
+            const maquinaEncontrada = listaMaquinas.find(m => m.id === maquinaId);
           paradasAbertasInfo.push({
             maquinaId,
             nome_equipamento: maquinaEncontrada?.nome || `ID ${maquinaId}`,
@@ -177,7 +181,8 @@ async function enviarParada(acao) {
         } else {
           maquinasSemParada.push(maquinaId);
         }
-      } catch {
+      } catch (e) {
+        console.warn('Erro ao buscar parada aberta:', e);
         maquinasComParada.push(maquinaId);
       }
     }
@@ -187,7 +192,6 @@ async function enviarParada(acao) {
   function resetarFormulario() {
     maquinasSelecionadas.value = [];
     motivoSelecionado.value = '';
-    operadorSelecionado.value = '';
     formBloqueado.value = false;
     botaoInicioDesabilitado.value = false;
     paradaAbertaEncontrada.value = false;
@@ -204,11 +208,22 @@ async function enviarParada(acao) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corpo),
       })
-        .then(res => {
+        .then(async res => {
           if (!res.ok) {
-            return res.text().then(text => {
-              throw new Error(text || `Erro ao enviar dados para o equipamento ${equipamento}`);
-            });
+            let msg = '';
+            try {
+              const data = await res.json();
+              if (data && data.existente) {
+                msg = `Já existe uma parada aberta para o equipamento ${equipamento}.\nMotivo: ${data.motivo}\nOperador: ${data.operador}`;
+              } else if (data && data.error) {
+                msg = data.error;
+              } else {
+                msg = await res.text();
+              }
+            } catch {
+              msg = await res.text();
+            }
+            throw new Error(msg || `Erro ao enviar dados para o equipamento ${equipamento}`);
           }
         })
         .catch(err => {
@@ -224,7 +239,7 @@ async function enviarParada(acao) {
       alert(`Já existe uma parada aberta para o equipamento:\n"${paradas[0].nome_equipamento}".\n\nMotivo: ${paradas[0].motivo}\nOperador: ${paradas[0].operador}`);
     } else if (paradas.length > 1) {
       const listaEquipamentos = paradas
-        .map(p => `• ${p.nome_equipamento} — Motivo: ${p.motivo}`)
+        .map(p => `• ${p.nome_equipamento} — Motivo: ${p.motivo || 'Não informado'}`)
         .join('\n\n');
       alert(`Já existe parada aberta para os seguintes equipamentos:\n\n${listaEquipamentos}`);
     }
@@ -239,45 +254,35 @@ async function enviarParada(acao) {
     const { maquinasComParada, maquinasSemParada, paradasAbertasInfo } =
       await buscarParadasAbertas(maquinasSelecionadas.value, dataReferenciaTurno);
 
-    if (
-      maquinasSelecionadas.value.length > 1 &&
-      maquinasComParada.length === maquinasSelecionadas.value.length &&
-      paradasAbertasInfo.length === maquinasSelecionadas.value.length &&
-      paradasAbertasInfo.every(
-        info => info.motivo === paradasAbertasInfo[0].motivo && info.operador === paradasAbertasInfo[0].operador
-      )
-    ) {
-      paradaAbertaEncontrada.value = true;
-      motivoSelecionado.value = paradasAbertasInfo[0].motivo || '';
-      operadorSelecionado.value = paradasAbertasInfo[0].operador || operadorSelecionado.value || '';
-      dataHora.value = getLocalDateTime();
-      formBloqueado.value = false;
-      botaoInicioDesabilitado.value = false;
-      mostrarDropdownMaquinas.value = false;
-      exibirAlertasParadaAberta(paradasAbertasInfo);
-      return;
+    if (maquinasComParada.length > 0) {
+      if (maquinasSelecionadas.value.length === 1) {
+        const parada = paradasAbertasInfo[0];
+        let nomeEquipamento = parada?.nome_equipamento;
+        if (!nomeEquipamento) {
+          const maq = maquinas.value.find(m => m.id === maquinasSelecionadas.value[0] || m.codigo === maquinasSelecionadas.value[0]);
+          nomeEquipamento = maq?.nome || maq?.descricao || maquinasSelecionadas.value[0] || '';
+        }
+        const motivo = parada?.motivo && parada.motivo.trim() ? parada.motivo : 'Não informado';
+        const operador = parada?.operador && parada.operador.trim() ? parada.operador : 'Não informado';
+        alert(`Já existe uma parada aberta para o equipamento:\n"${nomeEquipamento}".\n\nMotivo: ${motivo}\nOperador: ${operador}`);
+        return;
+      } else {
+        exibirAlertasParadaAberta(paradasAbertasInfo);
+        if (maquinasSemParada.length === 0) {
+          alert('Todas as máquinas selecionadas já possuem parada aberta. Não é possível iniciar nova parada.');
+          return;
+        }
+      }
+      if (maquinasSemParada.length === 0) {
+        return;
+      }
     }
-    if (maquinasSelecionadas.value.length === 1 && maquinasComParada.length === 1) {
-      paradaAbertaEncontrada.value = true;
-      const parada = paradasAbertasInfo[0];
-      motivoSelecionado.value = parada.motivo || '';
-      operadorSelecionado.value = parada.operador || operadorSelecionado.value || '';
-      dataHora.value = getLocalDateTime();
-      formBloqueado.value = true;
-      botaoInicioDesabilitado.value = true;
-      mostrarDropdownMaquinas.value = false;
-      exibirAlertasParadaAberta(paradasAbertasInfo);
-      return;
-    }
-    if (maquinasSelecionadas.value.length > 1 && maquinasComParada.length > 0) {
-      exibirAlertasParadaAberta(paradasAbertasInfo);
-    }
-    if (maquinasSemParada.length === 0) {
-      alert('Todas as máquinas selecionadas já possuem parada aberta. Não é possível iniciar nova parada.');
-      return;
-    }
-    if (!operadorSelecionado.value) {
+    if (!operadorSelecionado.value || !operadorSelecionado.value.trim()) {
       await carregarDadosOperadorLogado(tipoSelecionado, celulaSelecionada, operadorSelecionado);
+    }
+    if (!operadorSelecionado.value || !operadorSelecionado.value.trim()) {
+      const opLogin = localStorage.getItem('operador') || localStorage.getItem('usuario');
+      if (opLogin) operadorSelecionado.value = opLogin;
     }
 
     const erros = await enviarParaEquipamentos('http://10.1.1.11:3000/parada/inicio', {
@@ -289,14 +294,14 @@ async function enviarParada(acao) {
     if (erros.length === 0) {
       alert(`Início da parada registrado com sucesso para ${maquinasSemParada.length} equipamento(s)!`);
     } else {
-      alert(`Alguns erros ocorreram:\n${[...new Set(erros)].join('\n')}`);
+      alert(`${[...new Set(erros)].join('\n')}`);
     }
     resetarFormulario();
     return;
   }
 
   if (acao === 'fim') {
-    const { maquinasComParada, paradasAbertasInfo } =
+    const { maquinasComParada, maquinasSemParada, paradasAbertasInfo } =
       await buscarParadasAbertas(maquinasSelecionadas.value, dataReferenciaTurno);
     if (maquinasComParada.length === 0) {
       alert('Não há parada aberta para os equipamentos selecionados.');
@@ -305,19 +310,40 @@ async function enviarParada(acao) {
 
     paradaAbertaEncontrada.value = true;
     if (paradasAbertasInfo.length === 1) {
-      motivoSelecionado.value = paradasAbertasInfo[0].motivo || '';
-      operadorSelecionado.value = paradasAbertasInfo[0].operador || operadorSelecionado.value || '';
+      const parada = paradasAbertasInfo[0];
+      if (parada) {
+        motivoSelecionado.value = parada.motivo || '';
+        operadorSelecionado.value = parada.operador || operadorSelecionado.value || '';
+      }
+    }
+    if (!operadorSelecionado.value || !operadorSelecionado.value.trim()) {
+      await carregarDadosOperadorLogado(tipoSelecionado, celulaSelecionada, operadorSelecionado);
+    }
+    if (!operadorSelecionado.value || !operadorSelecionado.value.trim()) {
+      const opLogin = localStorage.getItem('operador') || localStorage.getItem('usuario');
+      if (opLogin) operadorSelecionado.value = opLogin;
     }
     const erros = await enviarParaEquipamentos('http://10.1.1.11:3000/parada/fim', {
       datahora_fim_parada: dataHora.value,
-      operador: operadorSelecionado.value || '',
+      operador: operadorSelecionado.value,
     }, maquinasComParada);
-    if (erros.length === 0) {
-      alert('Término da parada registrado com sucesso!');
-    } else {
-      const unicos = [...new Set(erros)];
-      alert(`Alguns erros ocorreram:\n${unicos.join('\n')}`);
+    let msg = '';
+    if (maquinasSemParada && maquinasSemParada.length > 0) {
+      const listaMaquinas = (typeof maquinas !== 'undefined' && maquinas.value) ? maquinas.value : [];
+      const nomesSemParada = maquinasSemParada.map(id => {
+        const maq = listaMaquinas.find(m => m.id === id || m.codigo === id);
+        return maq?.nome || maq?.descricao || id;
+      });
+      msg += `Não há parada aberta para o(s) equipamento(s):\n${nomesSemParada.map(n => `• ${n}`).join('\n')}`;
+      msg += '\n\n';
     }
+    if (maquinasComParada.length > 0 && erros.length === 0) {
+      msg += `Término da parada registrado com sucesso para ${maquinasComParada.length} equipamento(s)!`;
+    } else if (erros.length > 0) {
+      const unicos = [...new Set(erros)];
+      msg += `${unicos.join('\n')}`;
+    }
+    if (msg) alert(msg.trim());
     resetarFormulario();
     return;
   }
