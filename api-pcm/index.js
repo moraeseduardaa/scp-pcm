@@ -84,10 +84,10 @@ app.get("/equipamentos-por-unidade", async (req, res) => {
   }
 
   let tiposPermitidos = [];
-  if (unidade === '1') tiposPermitidos = [1];
-  else if (unidade === '2') tiposPermitidos = [1, 2];
-  else if (unidade === '3') tiposPermitidos = [1, 2, 3];
-  else if (unidade === '4') tiposPermitidos = [5, 6, 8, 11];
+  if (unidade === "1") tiposPermitidos = [1];
+  else if (unidade === "2") tiposPermitidos = [1, 2];
+  else if (unidade === "3") tiposPermitidos = [1, 2, 3];
+  else if (unidade === "4") tiposPermitidos = [5, 6, 8, 11];
 
   try {
     let sql = `SELECT equipamento.codigo, equipamento.descricao, equipamento.unidade, equipamento.tipo
@@ -96,14 +96,14 @@ app.get("/equipamentos-por-unidade", async (req, res) => {
                  AND equipamento.status = 'ATIVO'`;
     let params = [unidade];
     if (tiposPermitidos.length > 0) {
-      sql += ' AND equipamento.tipo = ANY($2)';
+      sql += " AND equipamento.tipo = ANY($2)";
       params.push(tiposPermitidos);
     }
-    sql += ' ORDER BY equipamento.descricao';
+    sql += " ORDER BY equipamento.descricao";
     const result = await pool.query(sql, params);
     res.json(result.rows);
   } catch (err) {
-    console.error('Erro ao buscar equipamentos:', err);
+    console.error("Erro ao buscar equipamentos:", err);
     res.status(500).json({ error: "Erro ao buscar equipamentos" });
   }
 });
@@ -257,7 +257,7 @@ app.get("/paradas/abertas", async (req, res) => {
 
 app.get("/parada/aberta/:equipamento", async (req, res) => {
   const equipamento = req.params.equipamento;
-  const data = req.query.data; 
+  const data = req.query.data;
   try {
     let result;
     if (data) {
@@ -370,7 +370,9 @@ app.post("/horimetro", async (req, res) => {
     return res.status(400).send("Período inválido");
   } catch (err) {
     console.error("Erro ao salvar horímetro:", err);
-    res.status(500).send("Erro ao salvar horímetro: " + (err.detail || err.message));
+    res
+      .status(500)
+      .send("Erro ao salvar horímetro: " + (err.detail || err.message));
   }
 });
 
@@ -443,7 +445,9 @@ app.post("/operadores", async (req, res) => {
 app.post("/operacao/inicio", async (req, res) => {
   const { equipamento, hora } = req.body;
   if (!equipamento || !hora) {
-    return res.status(400).json({ error: "Campos obrigatórios: equipamento, hora" });
+    return res
+      .status(400)
+      .json({ error: "Campos obrigatórios: equipamento, hora" });
   }
   const data = hora.slice(0, 10);
   try {
@@ -454,11 +458,17 @@ app.post("/operacao/inicio", async (req, res) => {
     if (busca.rows.length > 0) {
       const reg = busca.rows[0];
       if (reg.ini_1t && reg.fim_1t && !reg.ini_2t) {
-        await pool.query("UPDATE horimetro SET ini_2t = $1 WHERE codigo = $2", [hora, reg.codigo]);
+        await pool.query("UPDATE horimetro SET ini_2t = $1 WHERE codigo = $2", [
+          hora,
+          reg.codigo,
+        ]);
         return res.sendStatus(201);
       }
       if (!reg.ini_1t) {
-        await pool.query("UPDATE horimetro SET ini_1t = $1 WHERE codigo = $2", [hora, reg.codigo]);
+        await pool.query("UPDATE horimetro SET ini_1t = $1 WHERE codigo = $2", [
+          hora,
+          reg.codigo,
+        ]);
         return res.sendStatus(201);
       }
       if (reg.ini_1t && !reg.fim_1t) {
@@ -483,7 +493,9 @@ app.post("/operacao/inicio", async (req, res) => {
 app.post("/operacao/fim", async (req, res) => {
   const { equipamento, hora } = req.body;
   if (!equipamento || !hora) {
-    return res.status(400).json({ error: "Campos obrigatórios: equipamento, hora" });
+    return res
+      .status(400)
+      .json({ error: "Campos obrigatórios: equipamento, hora" });
   }
   const data = hora.slice(0, 10);
   try {
@@ -497,19 +509,29 @@ app.post("/operacao/fim", async (req, res) => {
         [equipamento]
       );
       if (!busca.rows.length) {
-        return res.status(409).json({ error: "Não há registro aberto para encerrar." });
+        return res
+          .status(409)
+          .json({ error: "Não há registro aberto para encerrar." });
       }
     }
     const reg = busca.rows[0];
     if (reg.ini_2t && !reg.fim_2t) {
-      await pool.query("UPDATE horimetro SET fim_2t = $1 WHERE codigo = $2", [hora, reg.codigo]);
+      await pool.query("UPDATE horimetro SET fim_2t = $1 WHERE codigo = $2", [
+        hora,
+        reg.codigo,
+      ]);
       return res.sendStatus(200);
     }
     if (reg.ini_1t && !reg.fim_1t) {
-      await pool.query("UPDATE horimetro SET fim_1t = $1 WHERE codigo = $2", [hora, reg.codigo]);
+      await pool.query("UPDATE horimetro SET fim_1t = $1 WHERE codigo = $2", [
+        hora,
+        reg.codigo,
+      ]);
       return res.sendStatus(200);
     }
-    return res.status(409).json({ error: "Não há registro aberto para encerrar." });
+    return res
+      .status(409)
+      .json({ error: "Não há registro aberto para encerrar." });
   } catch (err) {
     console.error("Erro ao registrar fim de operação:", err);
     res.status(500).send("Erro ao registrar fim de operação");
@@ -517,16 +539,29 @@ app.post("/operacao/fim", async (req, res) => {
 });
 
 app.post("/parada/inicio", async (req, res) => {
-  console.log("Dados recebidos:", req.body);
   const { equipamento, motivo, datahora_inicio_parada, operador } = req.body;
   try {
+    const busca = await pool.query(
+      `SELECT * FROM paradas_equipamentos WHERE equipamento = $1 AND datahora_fim_parada IS NULL`,
+      [equipamento]
+    );
+    if (busca.rows.length > 0) {
+      return res.status(409).json({
+        existente: true,
+        equipamento,
+        motivo: busca.rows[0].motivo,
+        operador: busca.rows[0].operador,
+        datahora_inicio_parada: busca.rows[0].datahora_inicio_parada,
+      });
+    }
     await pool.query(
       `INSERT INTO paradas_equipamentos (equipamento, motivo, datahora_inicio_parada, operador)
        VALUES ($1, $2, $3, $4)`,
       [equipamento, motivo, datahora_inicio_parada, operador]
     );
-    res.sendStatus(201);
-  } catch {
+    res.status(201).json({ existente: false });
+  } catch (err) {
+    console.error(err);
     res.status(500).send("Erro ao salvar início da parada");
   }
 });
@@ -545,10 +580,12 @@ app.post("/parada/fim", async (req, res) => {
   }
 });
 
-app.post('/usuarios/login', async (req, res) => {
+app.post("/usuarios/login", async (req, res) => {
   const { usuario, senha } = req.body;
   if (!usuario || !senha) {
-    return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
+    return res
+      .status(400)
+      .json({ success: false, message: "Usuário e senha são obrigatórios" });
   }
   try {
     const result = await pool.query(
@@ -563,11 +600,13 @@ app.post('/usuarios/login', async (req, res) => {
     if (result.rows.length > 0) {
       res.json({ success: true, usuario: result.rows[0] });
     } else {
-      res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
+      res
+        .status(401)
+        .json({ success: false, message: "Usuário ou senha inválidos" });
     }
   } catch (err) {
-    console.error('Erro ao buscar usuário:', err);
-    res.status(500).json({ success: false, message: 'Erro ao buscar usuário' });
+    console.error("Erro ao buscar usuário:", err);
+    res.status(500).json({ success: false, message: "Erro ao buscar usuário" });
   }
 });
 
