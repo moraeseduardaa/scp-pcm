@@ -155,23 +155,19 @@ async function enviarParada(acao) {
     return;
   }
 
-  const dataReferenciaTurno = getDataReferenciaTurno(dataHora.value);
-
-    async function buscarParadasAbertas(maquinasSelecionadas, dataReferencia) {
-      let maquinasComParada = [];
-      let maquinasSemParada = [];
-      let paradasAbertasInfo = [];
-      const listaMaquinas = (typeof maquinas !== 'undefined' && maquinas.value) ? maquinas.value : [];
-
-  for (const maquinaId of maquinasSelecionadas) {
+  async function buscarParadasAbertas(maquinasSelecionadas, dataHoraBusca) {
+    const dataReferenciaTurno = getDataReferenciaTurno(toLocalISOStringFromDatetimeLocal(dataHoraBusca));
+    let maquinasComParada = [];
+    let maquinasSemParada = [];
+    let paradasAbertasInfo = [];
+    const listaMaquinas = (typeof maquinas !== 'undefined' && maquinas.value) ? maquinas.value : [];
+    for (const maquinaId of maquinasSelecionadas) {
       try {
-        const url = `http://10.1.1.11:3000/parada/aberta/${maquinaId}?data=${dataReferencia}`;
-        console.log('Buscando parada aberta:', url);
+        const url = `http://10.1.1.11:3000/parada/aberta/${maquinaId}?data=${dataReferenciaTurno}`;
         const res = await fetch(url);
         if (res.status === 200) {
           const parada = await res.json();
-          console.log('Resposta parada aberta:', parada);
-            const maquinaEncontrada = listaMaquinas.find(m => m.id === maquinaId);
+          const maquinaEncontrada = listaMaquinas.find(m => m.id === maquinaId);
           paradasAbertasInfo.push({
             maquinaId,
             nome_equipamento: maquinaEncontrada?.nome || `ID ${maquinaId}`,
@@ -182,11 +178,23 @@ async function enviarParada(acao) {
           maquinasSemParada.push(maquinaId);
         }
       } catch (e) {
-        console.warn('Erro ao buscar parada aberta:', e);
         maquinasComParada.push(maquinaId);
       }
     }
     return { maquinasComParada, maquinasSemParada, paradasAbertasInfo };
+  }
+  
+  function toLocalISOStringFromDatetimeLocal(datetimeLocalStr) {
+    if (typeof datetimeLocalStr === 'string' && datetimeLocalStr.length >= 16 && datetimeLocalStr.includes('T')) {
+      const [datePart, timePart] = datetimeLocalStr.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hour, minute] = timePart.split(':').map(Number);
+      const date = new Date(year, month - 1, day, hour, minute, 0);
+      const pad = n => String(n).padStart(2, '0');
+      const localStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      return localStr;
+    }
+    return datetimeLocalStr;
   }
 
   function resetarFormulario() {
@@ -252,7 +260,7 @@ async function enviarParada(acao) {
     }
 
     const { maquinasComParada, maquinasSemParada, paradasAbertasInfo } =
-      await buscarParadasAbertas(maquinasSelecionadas.value, dataReferenciaTurno);
+      await buscarParadasAbertas(maquinasSelecionadas.value, toLocalISOStringFromDatetimeLocal(dataHora.value));
 
     if (maquinasComParada.length > 0) {
       if (maquinasSelecionadas.value.length === 1) {
@@ -302,7 +310,7 @@ async function enviarParada(acao) {
 
   if (acao === 'fim') {
     const { maquinasComParada, maquinasSemParada, paradasAbertasInfo } =
-      await buscarParadasAbertas(maquinasSelecionadas.value, dataReferenciaTurno);
+      await buscarParadasAbertas(maquinasSelecionadas.value, toLocalISOStringFromDatetimeLocal(dataHora.value));
     if (maquinasComParada.length === 0) {
       alert('Não há parada aberta para os equipamentos selecionados.');
       return;
