@@ -160,13 +160,24 @@ export function useUtils() {
 
   function getDataReferenciaTurno(dataHoraStr, limiteHora = 4) {
     if (!dataHoraStr) return "";
-    const data = new Date(dataHoraStr);
+    let data;
+    if (typeof dataHoraStr === 'string' && dataHoraStr.includes('T')) {
+      const [datePart, timePart] = dataHoraStr.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hour, minute, second] = timePart.split(':').map(Number);
+      data = new Date(year, month - 1, day, hour, minute, second || 0);
+    } else {
+      data = new Date(dataHoraStr);
+    }
     if (isNaN(data.getTime())) return "";
     const hora = data.getHours();
     if (hora < limiteHora) {
       data.setDate(data.getDate() - 1);
     }
-    return data.toISOString().slice(0, 10);
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
   }
 
   return {
