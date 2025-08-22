@@ -20,7 +20,7 @@
         <select class="form-control custom-date-input" v-model="filtroCelula">
           <option value="">Todas Células</option>
           <option v-for="celula in celulasDisponiveis" :key="celula.codigo" :value="celula.codigo">
-            {{ celula.descricao }}
+            {{ celula.celula }}
           </option>
         </select>
       </div>
@@ -47,7 +47,7 @@
           <td>{{ formatarHoras(equip.turnoNormal) }}</td>
           <td>{{ formatarHoras(equip.horaExtra) }}</td>
           <td>{{ formatarHoras(equip.turnoComHE) }}</td>
-          <td>-</td>
+          <td>{{ formatarHoras(equip.horasParadas || 0) }}</td>
           <td>-</td>
         </tr>
         <tr v-if="painelFiltrado.length === 0">
@@ -84,8 +84,7 @@ const painelFiltrado = computed(() => {
 
     const celulaOk =
       !filtroCelula.value ||
-      String(equip.celula).trim().toUpperCase() ===
-      String(filtroCelula.value).trim().toUpperCase();
+      String(equip.cod_celula) === String(filtroCelula.value);
 
     return setorOk && celulaOk;
   });
@@ -143,12 +142,7 @@ async function buscarCelulasPorUnidadeSetor(setorCodigo) {
       `http://10.1.1.11:3000/celulas?tipo=${encodeURIComponent(setorCodigo)}`
     );
     const celulas = await res.json();
-
-    return celulas.map((c) =>
-      typeof c === "string"
-        ? { codigo: c.replace(/\D/g, "") || c, descricao: c }
-        : c
-    );
+    return celulas;
   } catch {
     return [];
   }
@@ -186,6 +180,12 @@ async function buscarDados() {
     );
     const horimetro = await resHori.json();
 
+    const resParadas = await fetch(
+      `http://10.1.1.11:3000/paradas?unidade=${encodeURIComponent(
+        filtroUnidade.value)}&data=${dataSelecionada.value}`
+    );
+    const paradas = await resParadas.json();
+
     painel.value = equipamentos.map((equip) => {
       const registros = horimetro.filter(
         (h) => h.equipamento === equip.codigo
@@ -213,15 +213,26 @@ async function buscarDados() {
         }
       });
 
+      const paradasEquip = paradas.filter((p) => p.equipamento === equip.codigo);
+      let totalHorasParadas = 0;
+      paradasEquip.forEach((p) => {
+        if (p.inicio && p.fim) {
+          const ini = new Date(p.inicio);
+          const fim = new Date(p.fim);
+          totalHorasParadas += (fim - ini) / 3600000;
+        }
+      });
+
       return {
         codigo: equip.codigo,
         descricao: equip.descricao,
         unidade: equip.unidade,
-        setor: equip.tipo, // usa o código do tipo para filtrar corretamente
-        celula: equip.celula,
+        setor: equip.tipo,
+        cod_celula: equip.cod_celula,
         turnoNormal: totalNormal,
         horaExtra: totalHE,
-        turnoComHE: totalNormal + totalHE
+        turnoComHE: totalNormal + totalHE,
+        horasParadas: totalHorasParadas
       };
     });
   } catch (e) {
