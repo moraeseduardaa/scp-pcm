@@ -26,10 +26,10 @@ app.get("/celulas", async (req, res) => {
   }
   try {
     const result = await pool.query(
-      "SELECT celula FROM celula WHERE tipo_equipamento = $1",
+      "SELECT codigo, celula FROM celula WHERE tipo_equipamento = $1",
       [tipo]
     );
-    res.json(result.rows.map((row) => row.celula));
+    res.json(result.rows);
   } catch (err) {
     console.error("Erro ao buscar células:", err);
     res.status(500).send("Erro ao buscar células");
@@ -90,8 +90,9 @@ app.get("/equipamentos-por-unidade", async (req, res) => {
   else if (unidade === "4") tiposPermitidos = [5, 6, 8, 11];
 
   try {
-    let sql = `SELECT equipamento.codigo, equipamento.descricao, equipamento.unidade, equipamento.tipo
+    let sql = `SELECT equipamento.codigo, equipamento.descricao, equipamento.unidade, equipamento.tipo, equipamento.cod_celula, celula.celula
                FROM equipamento
+               LEFT JOIN celula ON equipamento.cod_celula = celula.codigo
                WHERE equipamento.unidade = $1
                  AND equipamento.status = 'ATIVO'`;
     let params = [unidade];
@@ -228,6 +229,34 @@ app.get("/motivos-parada", async (req, res) => {
   } catch (err) {
     console.error("Erro ao buscar motivos:", err);
     res.status(500).send("Erro ao buscar motivos");
+  }
+});
+
+app.get("/paradas", async (req, res) => {
+  const unidade = req.query.unidade;
+  const data = req.query.data;
+  if (!unidade || !data) {
+    return res.status(400).json({ error: "Unidade e data são obrigatórias" });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT 
+         p.equipamento, 
+         p.datahora_inicio_parada AS inicio, 
+         p.datahora_fim_parada AS fim
+       FROM paradas_equipamentos p
+       JOIN equipamento e ON e.codigo = p.equipamento
+       WHERE e.unidade = $1
+         AND p.datahora_inicio_parada IS NOT NULL
+         AND p.datahora_fim_parada IS NOT NULL
+         AND CAST(p.datahora_inicio_parada AS DATE) = $2
+       ORDER BY p.equipamento, p.datahora_inicio_parada`,
+      [unidade, data]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Erro ao buscar paradas:", err);
+    res.status(500).send("Erro ao buscar paradas");
   }
 });
 
