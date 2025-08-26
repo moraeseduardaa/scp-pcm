@@ -265,10 +265,10 @@ async function buscarDados() {
       }
 
       const horaDisponivel = (totalNormal + totalHE) - totalHorasParadas;
-      let produtividade = null;
-      if (horimetroTotalHoras && horimetroTotalHoras > 0) {
-        produtividade = horaDisponivel / horimetroTotalHoras;
-      }
+        let produtividade = null;
+        if (horaDisponivel > 0) {
+          produtividade = horimetroTotalHoras / horaDisponivel;
+        }
 
       return {
         codigo: equip.codigo,
