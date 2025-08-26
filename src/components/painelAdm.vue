@@ -41,7 +41,7 @@
   </div>
 
   <div class="modal fade" id="controleModal" tabindex="-1" aria-labelledby="controleModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl" style="max-width:90vw; width:90vw; min-width:900px;">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="controleModalLabel">Painel de Controle</h5>

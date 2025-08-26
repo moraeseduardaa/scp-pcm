@@ -49,6 +49,7 @@ app.get("/unidades-fabrica", async (req, res) => {
 });
 
 app.get("/equipamentos", async (req, res) => {
+  
   const tipo = req.query["tipo"];
   const celula = req.query["celula"];
   console.log("req.query:", req.query);
@@ -111,7 +112,8 @@ app.get("/equipamentos-por-unidade", async (req, res) => {
 
 app.get("/horimetro", async (req, res) => {
   const unidade = req.query.unidade;
-  const data = req.query.data;
+  const dataInicial = req.query.dataInicial;
+  const dataFinal = req.query.dataFinal;
   if (!unidade) {
     return res.status(400).json({ error: "Unidade é obrigatória!" });
   }
@@ -127,9 +129,9 @@ app.get("/horimetro", async (req, res) => {
       WHERE e.unidade = $1
     `;
     let params = [unidade];
-    if (data) {
-      query += ` AND (CAST(h.ini_1t AS DATE) = $2 OR CAST(h.ini_2t AS DATE) = $2)`;
-      params.push(data);
+    if (dataInicial && dataFinal) {
+      query += ` AND (CAST(h.ini_1t AS DATE) BETWEEN $2 AND $3 OR CAST(h.ini_2t AS DATE) BETWEEN $2 AND $3)`;
+      params.push(dataInicial, dataFinal);
     }
     query += ` ORDER BY h.equipamento;`;
     const result = await pool.query(query, params);
@@ -137,6 +139,39 @@ app.get("/horimetro", async (req, res) => {
   } catch (err) {
     console.error("Erro ao buscar dados do horímetro:", err);
     res.status(500).send("Erro ao buscar dados do horímetro");
+  }
+});
+
+app.get("/horimetro/total", async (req, res) => {
+  const dataInicial = req.query.dataInicial;
+  const dataFinal = req.query.dataFinal;
+  try {
+    let query = `
+      SELECT 
+          equipamento,
+          CAST(data1 AS DATE) AS data,
+          TO_CHAR(
+              SUM(
+                  (EXTRACT(EPOCH FROM horimetro1) + EXTRACT(EPOCH FROM horimetro2))::int
+              ) * interval '1 second',
+              'HH24:MI:SS'
+          ) AS horimetro_total
+      FROM horimetro
+      WHERE horimetro1 IS NOT NULL 
+        AND horimetro2 IS NOT NULL
+    `;
+    let params = [];
+    if (dataInicial && dataFinal) {
+      query += ` AND CAST(data1 AS DATE) BETWEEN $1 AND $2`;
+      params.push(dataInicial, dataFinal);
+    }
+    query += ` GROUP BY equipamento, CAST(data1 AS DATE)
+      ORDER BY equipamento, data`;
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Erro ao buscar horímetro total:", err);
+    res.status(500).send("Erro ao buscar horímetro total");
   }
 });
 
@@ -234,24 +269,28 @@ app.get("/motivos-parada", async (req, res) => {
 
 app.get("/paradas", async (req, res) => {
   const unidade = req.query.unidade;
-  const data = req.query.data;
-  if (!unidade || !data) {
-    return res.status(400).json({ error: "Unidade e data são obrigatórias" });
+  const dataInicial = req.query.dataInicial;
+  const dataFinal = req.query.dataFinal;
+  if (!unidade || !dataInicial || !dataFinal) {
+    return res.status(400).json({ error: "Unidade, dataInicial e dataFinal são obrigatórias" });
   }
   try {
     const result = await pool.query(
       `SELECT 
          p.equipamento, 
+         p.motivo,
+         m.programada,
          p.datahora_inicio_parada AS inicio, 
          p.datahora_fim_parada AS fim
        FROM paradas_equipamentos p
        JOIN equipamento e ON e.codigo = p.equipamento
+       JOIN motivos_parada m ON m.motivo = p.motivo
        WHERE e.unidade = $1
          AND p.datahora_inicio_parada IS NOT NULL
          AND p.datahora_fim_parada IS NOT NULL
-         AND CAST(p.datahora_inicio_parada AS DATE) = $2
+         AND CAST(p.datahora_inicio_parada AS DATE) BETWEEN $2 AND $3
        ORDER BY p.equipamento, p.datahora_inicio_parada`,
-      [unidade, data]
+      [unidade, dataInicial, dataFinal]
     );
     res.json(result.rows);
   } catch (err) {

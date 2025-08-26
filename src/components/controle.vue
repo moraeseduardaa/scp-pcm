@@ -26,7 +26,18 @@
       </div>
 
       <div style="padding: 8px; min-width: 180px; margin-top: -35px">
-        <input type="date" class="form-control custom-date-input" v-model="dataSelecionada" @change="buscarDados" />
+        <select class="form-control custom-date-input" v-model="filtroTurno">
+          <option value="">Todos os Turnos</option>
+        </select>
+      </div>
+
+      <div style="padding: 8px; min-width: 180px; margin-top: -35px">
+        <!-- <label>Data Inicial</label> -->
+        <input type="date" class="form-control custom-date-input" v-model="dataInicial" @change="buscarDados" />
+      </div>
+      <div style="padding: 8px; min-width: 180px; margin-top: -35px">
+        <!-- <label>Data Final</label> -->
+        <input type="date" class="form-control custom-date-input" v-model="dataFinal" @change="buscarDados" />
       </div>
     </div>
 
@@ -36,8 +47,10 @@
           <th>Equipamento</th>
           <th>Turno</th>
           <th>HE</th>
-          <th>Turno com HE</th>
+          <th>Turno Total</th>
           <th>Paradas</th>
+          <th>Disponível</th>
+          <th>Trabalhado</th>
           <th>Produtividade</th>
         </tr>
       </thead>
@@ -48,7 +61,14 @@
           <td>{{ formatarHoras(equip.horaExtra) }}</td>
           <td>{{ formatarHoras(equip.turnoComHE) }}</td>
           <td>{{ formatarHoras(equip.horasParadas || 0) }}</td>
-          <td>-</td>
+          <td>{{ formatarHoras(equip.horaDisponivel || 0) }}</td>
+          <td>{{ formatarHoras(equip.horimetroTotalHoras || 0) }}</td>
+          <td>
+            <span v-if="equip.produtividade !== null">
+              {{ (equip.produtividade * 100).toFixed(0) }}%
+            </span>
+            <span v-else>-</span>
+          </td>
         </tr>
         <tr v-if="painelFiltrado.length === 0">
           <td colspan="6" class="text-center">Nenhum equipamento encontrado para os filtros selecionados.</td>
@@ -65,7 +85,8 @@ const painel = ref([]);
 const props = defineProps({
   unidade: { type: String, required: true }
 });
-const dataSelecionada = ref(new Date().toISOString().split("T")[0]);
+const dataInicial = ref(new Date().toISOString().split("T")[0]);
+const dataFinal = ref(new Date().toISOString().split("T")[0]);
 
 const filtroUnidade = ref(props.unidade);
 const filtroSetor = ref("");
@@ -169,22 +190,27 @@ async function buscarDados() {
     const resEquip = await fetch(
       `http://10.1.1.11:3000/equipamentos-por-unidade?unidade=${encodeURIComponent(
         filtroUnidade.value
-      )}&data=${dataSelecionada.value}`
+      )}&dataInicial=${dataInicial.value}&dataFinal=${dataFinal.value}`
     );
     const equipamentos = await resEquip.json();
 
     const resHori = await fetch(
       `http://10.1.1.11:3000/horimetro?unidade=${encodeURIComponent(
         filtroUnidade.value
-      )}&data=${dataSelecionada.value}`
+      )}&dataInicial=${dataInicial.value}&dataFinal=${dataFinal.value}`
     );
     const horimetro = await resHori.json();
 
     const resParadas = await fetch(
       `http://10.1.1.11:3000/paradas?unidade=${encodeURIComponent(
-        filtroUnidade.value)}&data=${dataSelecionada.value}`
+        filtroUnidade.value)}&dataInicial=${dataInicial.value}&dataFinal=${dataFinal.value}`
     );
     const paradas = await resParadas.json();
+
+    const resHoriTotal = await fetch(
+      `http://10.1.1.11:3000/horimetro/total?dataInicial=${dataInicial.value}&dataFinal=${dataFinal.value}`
+    );
+    const horimetroTotal = await resHoriTotal.json();
 
     painel.value = equipamentos.map((equip) => {
       const registros = horimetro.filter(
@@ -213,7 +239,9 @@ async function buscarDados() {
         }
       });
 
-      const paradasEquip = paradas.filter((p) => p.equipamento === equip.codigo);
+      const paradasEquip = paradas.filter(
+        (p) => p.equipamento === equip.codigo && p.programada !== 'SIM'
+      );
       let totalHorasParadas = 0;
       paradasEquip.forEach((p) => {
         if (p.inicio && p.fim) {
@@ -222,6 +250,25 @@ async function buscarDados() {
           totalHorasParadas += (fim - ini) / 3600000;
         }
       });
+
+      const horimetroEquip = horimetroTotal.find(
+        (h) => {
+          const dataH = (h.data || '').slice(0, 10);
+          const dataSel = (dataInicial.value || '').slice(0, 10);
+          return h.equipamento === equip.codigo && dataH === dataSel;
+        }
+      );
+      let horimetroTotalHoras = null;
+      if (horimetroEquip && horimetroEquip.horimetro_total) {
+        const [h, m, s] = horimetroEquip.horimetro_total.split(":").map(Number);
+        horimetroTotalHoras = h + m / 60 + s / 3600;
+      }
+
+      const horaDisponivel = (totalNormal + totalHE) - totalHorasParadas;
+      let produtividade = null;
+      if (horimetroTotalHoras && horimetroTotalHoras > 0) {
+        produtividade = horaDisponivel / horimetroTotalHoras;
+      }
 
       return {
         codigo: equip.codigo,
@@ -232,7 +279,10 @@ async function buscarDados() {
         turnoNormal: totalNormal,
         horaExtra: totalHE,
         turnoComHE: totalNormal + totalHE,
-        horasParadas: totalHorasParadas
+        horasParadas: totalHorasParadas,
+        horaDisponivel,
+        horimetroTotalHoras,
+        produtividade
       };
     });
   } catch (e) {
@@ -278,7 +328,8 @@ watch(filtroSetor, async (novoSetor) => {
 });
 
 watch(filtroCelula, buscarDados);
-watch(dataSelecionada, buscarDados);
+watch(dataInicial, buscarDados);
+watch(dataFinal, buscarDados);
 
 onMounted(async () => {
   await buscarUnidadesFabris();
@@ -301,7 +352,8 @@ onMounted(async () => {
 
 <style scoped>
 .container {
-  max-width: 900px;
+  max-width: 1200px;
+  min-width: 900px;
 }
 
 .custom-date-input {
